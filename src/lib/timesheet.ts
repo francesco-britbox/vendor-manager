@@ -722,3 +722,415 @@ export async function getTimesheetStats(month: number, year: number): Promise<{
     timeOffDays,
   };
 }
+
+// ============================================================================
+// VENDOR-FILTERED OPERATIONS
+// ============================================================================
+
+/**
+ * Get timesheet entries filtered by vendor
+ */
+export async function getTimesheetEntriesByVendor(
+  vendorId: string,
+  month: number,
+  year: number
+): Promise<{ entries: TimesheetEntryWithMember[]; total: number }> {
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0);
+
+  // Get team members for this vendor
+  const teamMembers = await prisma.teamMember.findMany({
+    where: { vendorId, status: 'active' },
+    select: { id: true },
+  });
+
+  const teamMemberIds = teamMembers.map((tm) => tm.id);
+
+  if (teamMemberIds.length === 0) {
+    return { entries: [], total: 0 };
+  }
+
+  return getTimesheetEntries({
+    teamMemberIds,
+    dateFrom: startOfMonth,
+    dateTo: endOfMonth,
+  });
+}
+
+/**
+ * Get monthly summary by vendor
+ */
+export async function getMonthlyTimesheetSummaryByVendor(
+  vendorId: string,
+  month: number,
+  year: number
+): Promise<MonthlyTimesheetSummary[]> {
+  // Get team members for this vendor
+  const teamMembers = await prisma.teamMember.findMany({
+    where: { vendorId, status: 'active' },
+    select: { id: true },
+  });
+
+  const teamMemberIds = teamMembers.map((tm) => tm.id);
+
+  if (teamMemberIds.length === 0) {
+    return [];
+  }
+
+  return getMonthlyTimesheetSummary(month, year, teamMemberIds);
+}
+
+/**
+ * Get aggregated vendor summary for a month
+ */
+export interface VendorTimesheetSummary {
+  vendorId: string;
+  vendorName: string;
+  month: number;
+  year: number;
+  totalTeamMembers: number;
+  totalHours: number;
+  totalDays: number;
+  totalSpend: number;
+  timeOffBreakdown: Record<TimeOffCode, number>;
+  teamMemberSummaries: MonthlyTimesheetSummary[];
+}
+
+export async function getVendorTimesheetSummary(
+  vendorId: string,
+  month: number,
+  year: number
+): Promise<VendorTimesheetSummary | null> {
+  const vendor = await prisma.vendor.findUnique({
+    where: { id: vendorId },
+    select: { id: true, name: true },
+  });
+
+  if (!vendor) {
+    return null;
+  }
+
+  const summaries = await getMonthlyTimesheetSummaryByVendor(vendorId, month, year);
+
+  // Aggregate totals
+  let totalHours = 0;
+  let totalDays = 0;
+  let totalSpend = 0;
+  const timeOffBreakdown: Record<TimeOffCode, number> = {
+    VAC: 0,
+    HALF: 0,
+    SICK: 0,
+    MAT: 0,
+    CAS: 0,
+    UNPAID: 0,
+  };
+
+  for (const summary of summaries) {
+    totalHours += summary.totalHours;
+    totalDays += summary.totalWorkingDays;
+    totalSpend += summary.totalSpend;
+
+    for (const [code, count] of Object.entries(summary.timeOffBreakdown)) {
+      timeOffBreakdown[code as TimeOffCode] += count;
+    }
+  }
+
+  return {
+    vendorId: vendor.id,
+    vendorName: vendor.name,
+    month,
+    year,
+    totalTeamMembers: summaries.length,
+    totalHours: Math.round(totalHours * 100) / 100,
+    totalDays: Math.round(totalDays * 100) / 100,
+    totalSpend: Math.round(totalSpend * 100) / 100,
+    timeOffBreakdown,
+    teamMemberSummaries: summaries,
+  };
+}
+
+/**
+ * Get all vendors' timesheet summaries for a month
+ */
+export async function getAllVendorsTimesheetSummary(
+  month: number,
+  year: number
+): Promise<VendorTimesheetSummary[]> {
+  const vendors = await prisma.vendor.findMany({
+    where: { status: 'active' },
+    select: { id: true },
+  });
+
+  const summaries: VendorTimesheetSummary[] = [];
+
+  for (const vendor of vendors) {
+    const summary = await getVendorTimesheetSummary(vendor.id, month, year);
+    if (summary && summary.totalTeamMembers > 0) {
+      summaries.push(summary);
+    }
+  }
+
+  return summaries;
+}
+
+// ============================================================================
+// CSV IMPORT VALIDATION
+// ============================================================================
+
+/**
+ * Zod schema for CSV import row
+ */
+export const csvImportRowSchema = z.object({
+  teamMemberName: z.string().min(1, 'Team member name is required'),
+  date: z.string().min(1, 'Date is required'),
+  hours: z.number().min(0).max(24).optional().nullable(),
+  timeOffCode: timeOffCodeSchema.optional().nullable(),
+}).refine(
+  (data) => data.hours !== null || data.timeOffCode !== null,
+  { message: 'Either hours or time-off code must be provided' }
+);
+
+/**
+ * Zod schema for CSV import request
+ */
+export const csvImportSchema = z.object({
+  vendorId: z.string().cuid('Invalid vendor ID format'),
+  month: z.number().min(1).max(12),
+  year: z.number().min(2000).max(2100),
+  entries: z.array(csvImportRowSchema),
+});
+
+export type CSVImportInput = z.infer<typeof csvImportSchema>;
+export type CSVImportRowInput = z.infer<typeof csvImportRowSchema>;
+
+/**
+ * CSV Import validation result
+ */
+export interface CSVImportValidationResult {
+  valid: boolean;
+  validEntries: CreateTimesheetEntryInput[];
+  errors: {
+    rowNumber: number;
+    field: string;
+    message: string;
+    value?: string;
+  }[];
+  stats: {
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    duplicateRows: number;
+  };
+}
+
+/**
+ * Validate CSV import data
+ */
+export async function validateCSVImport(
+  vendorId: string,
+  month: number,
+  year: number,
+  rows: { teamMemberName: string; date: string; hours?: number | null; timeOffCode?: string | null }[]
+): Promise<CSVImportValidationResult> {
+  const errors: CSVImportValidationResult['errors'] = [];
+  const validEntries: CreateTimesheetEntryInput[] = [];
+  const seenEntries = new Map<string, number>();
+
+  // Get team members for this vendor
+  const teamMembers = await prisma.teamMember.findMany({
+    where: { vendorId, status: 'active' },
+    select: { id: true, firstName: true, lastName: true, email: true },
+  });
+
+  // Build lookup maps for team member matching
+  const memberByName = new Map<string, typeof teamMembers[0]>();
+  const memberByEmail = new Map<string, typeof teamMembers[0]>();
+
+  for (const member of teamMembers) {
+    const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+    memberByName.set(fullName, member);
+    memberByEmail.set(member.email.toLowerCase(), member);
+  }
+
+  // Valid date range
+  const startOfMonth = new Date(year, month - 1, 1);
+  const endOfMonth = new Date(year, month, 0);
+
+  let duplicateRows = 0;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const rowNumber = i + 2; // 1-based, accounting for header
+    let hasError = false;
+
+    // Find team member
+    const normalizedName = row.teamMemberName.toLowerCase().trim();
+    let member = memberByName.get(normalizedName) || memberByEmail.get(normalizedName);
+
+    // Try partial match if exact match not found
+    if (!member) {
+      for (const [name, m] of memberByName) {
+        if (name.includes(normalizedName) || normalizedName.includes(name)) {
+          member = m;
+          break;
+        }
+      }
+    }
+
+    if (!member) {
+      errors.push({
+        rowNumber,
+        field: 'teamMemberName',
+        message: `Team member "${row.teamMemberName}" not found for this vendor`,
+        value: row.teamMemberName,
+      });
+      hasError = true;
+    }
+
+    // Parse and validate date
+    let parsedDate: Date | null = null;
+
+    if (!row.date) {
+      errors.push({
+        rowNumber,
+        field: 'date',
+        message: 'Date is required',
+      });
+      hasError = true;
+    } else {
+      // Try parsing various date formats
+      const dateStr = row.date.trim();
+
+      // YYYY-MM-DD
+      const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (isoMatch) {
+        parsedDate = new Date(parseInt(isoMatch[1]), parseInt(isoMatch[2]) - 1, parseInt(isoMatch[3]));
+      }
+
+      // DD/MM/YYYY
+      if (!parsedDate) {
+        const ukMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (ukMatch) {
+          parsedDate = new Date(parseInt(ukMatch[3]), parseInt(ukMatch[2]) - 1, parseInt(ukMatch[1]));
+        }
+      }
+
+      if (!parsedDate || isNaN(parsedDate.getTime())) {
+        errors.push({
+          rowNumber,
+          field: 'date',
+          message: 'Invalid date format. Use YYYY-MM-DD or DD/MM/YYYY',
+          value: row.date,
+        });
+        hasError = true;
+      } else if (parsedDate < startOfMonth || parsedDate > endOfMonth) {
+        errors.push({
+          rowNumber,
+          field: 'date',
+          message: `Date must be within the selected month (${month}/${year})`,
+          value: row.date,
+        });
+        hasError = true;
+      }
+    }
+
+    // Validate hours
+    if (row.hours !== null && row.hours !== undefined) {
+      if (row.hours < 0) {
+        errors.push({
+          rowNumber,
+          field: 'hours',
+          message: 'Hours cannot be negative',
+          value: String(row.hours),
+        });
+        hasError = true;
+      } else if (row.hours > 24) {
+        errors.push({
+          rowNumber,
+          field: 'hours',
+          message: 'Hours cannot exceed 24',
+          value: String(row.hours),
+        });
+        hasError = true;
+      }
+    }
+
+    // Validate time-off code
+    let validTimeOffCode: TimeOffCode | null = null;
+    if (row.timeOffCode) {
+      const normalizedCode = row.timeOffCode.toUpperCase().trim();
+      const validCodes: TimeOffCode[] = ['VAC', 'HALF', 'SICK', 'MAT', 'CAS', 'UNPAID'];
+
+      if (!validCodes.includes(normalizedCode as TimeOffCode)) {
+        errors.push({
+          rowNumber,
+          field: 'timeOffCode',
+          message: `Invalid time-off code. Use: ${validCodes.join(', ')}`,
+          value: row.timeOffCode,
+        });
+        hasError = true;
+      } else {
+        validTimeOffCode = normalizedCode as TimeOffCode;
+      }
+    }
+
+    // Ensure either hours or time-off code is provided
+    if ((row.hours === null || row.hours === undefined) && !row.timeOffCode) {
+      errors.push({
+        rowNumber,
+        field: 'hours/timeOffCode',
+        message: 'Either hours or time-off code must be provided',
+      });
+      hasError = true;
+    }
+
+    // Check for duplicates
+    if (member && parsedDate && !hasError) {
+      const key = `${member.id}-${parsedDate.toISOString().split('T')[0]}`;
+      const existingRow = seenEntries.get(key);
+
+      if (existingRow) {
+        errors.push({
+          rowNumber,
+          field: 'duplicate',
+          message: `Duplicate entry: same team member and date as row ${existingRow}`,
+        });
+        duplicateRows++;
+        hasError = true;
+      } else {
+        seenEntries.set(key, rowNumber);
+      }
+    }
+
+    // Add to valid entries if no errors
+    if (!hasError && member && parsedDate) {
+      validEntries.push({
+        teamMemberId: member.id,
+        date: parsedDate,
+        hours: row.hours ?? null,
+        timeOffCode: validTimeOffCode,
+      });
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    validEntries,
+    errors,
+    stats: {
+      totalRows: rows.length,
+      validRows: validEntries.length,
+      invalidRows: rows.length - validEntries.length,
+      duplicateRows,
+    },
+  };
+}
+
+/**
+ * Import validated CSV entries
+ */
+export async function importCSVEntries(
+  entries: CreateTimesheetEntryInput[]
+): Promise<{ created: number; updated: number; deleted: number }> {
+  return bulkUpsertTimesheetEntries(entries);
+}
