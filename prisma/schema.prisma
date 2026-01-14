@@ -1,0 +1,401 @@
+// Prisma Schema for Presence Manager (Vendor Management System)
+// Database: PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum PermissionLevel {
+  denied
+  view
+  write
+  admin
+}
+
+enum VendorStatus {
+  active
+  inactive
+}
+
+enum TeamMemberStatus {
+  active
+  inactive
+  onboarding
+  offboarded
+}
+
+enum ContractStatus {
+  draft
+  active
+  expired
+  terminated
+}
+
+enum InvoiceStatus {
+  pending
+  validated
+  disputed
+  paid
+}
+
+enum TimeOffCode {
+  VAC // Vacation
+  HALF // Half Day
+  SICK // Sick Leave
+  MAT // Maternity Leave
+  CAS // Casual Leave
+  UNPAID // Unpaid Leave
+}
+
+// ============================================================================
+// MODELS
+// ============================================================================
+
+/// User model for authentication and authorization
+model User {
+  id              String          @id @default(cuid())
+  email           String          @unique
+  password        String          // Hashed password for authentication
+  name            String
+  permissionLevel PermissionLevel @default(view)
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([email])
+  @@index([permissionLevel])
+  @@index([isActive])
+  @@map("users")
+}
+
+/// Vendor model representing external service providers
+model Vendor {
+  id                 String       @id @default(cuid())
+  name               String
+  address            String?
+  location           String?
+  serviceDescription String?      @db.Text
+  status             VendorStatus @default(active)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  // Relationships
+  rateCards   RateCard[]
+  teamMembers TeamMember[]
+  invoices    Invoice[]
+  contracts   Contract[]
+  tags        VendorTag[]
+
+  @@index([name])
+  @@index([status])
+  @@index([createdAt])
+  @@map("vendors")
+}
+
+/// Role model representing job roles/positions
+model Role {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  rateCards   RateCard[]
+  teamMembers TeamMember[]
+
+  @@index([name])
+  @@map("roles")
+}
+
+/// RateCard model for vendor pricing by role
+model RateCard {
+  id            String    @id @default(cuid())
+  vendorId      String
+  roleId        String
+  rate          Decimal   @db.Decimal(12, 2)
+  currency      String    @default("GBP") @db.VarChar(3)
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  notes         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relationships
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@unique([vendorId, roleId, effectiveFrom])
+  @@index([vendorId])
+  @@index([roleId])
+  @@index([effectiveFrom])
+  @@index([effectiveTo])
+  @@index([currency])
+  @@map("rate_cards")
+}
+
+/// TeamMember model representing contractor personnel
+model TeamMember {
+  id                 String           @id @default(cuid())
+  firstName          String
+  lastName           String
+  email              String           @unique
+  vendorId           String
+  roleId             String
+  dailyRate          Decimal          @db.Decimal(12, 2)
+  currency           String           @default("GBP") @db.VarChar(3)
+  startDate          DateTime
+  endDate            DateTime?
+  status             TeamMemberStatus @default(active)
+  plannedUtilization Decimal?         @db.Decimal(5, 2) // Percentage 0-100
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  // Relationships
+  vendor           Vendor           @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  role             Role             @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  timesheetEntries TimesheetEntry[]
+  tags             TeamMemberTag[]
+
+  @@index([vendorId])
+  @@index([roleId])
+  @@index([email])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@map("team_members")
+}
+
+/// TimesheetEntry model for tracking work hours and time off
+model TimesheetEntry {
+  id           String       @id @default(cuid())
+  teamMemberId String
+  date         DateTime     @db.Date
+  hours        Decimal?     @db.Decimal(4, 2) // Max 99.99 hours
+  timeOffCode  TimeOffCode?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  // Relationships
+  teamMember TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([teamMemberId, date])
+  @@index([teamMemberId])
+  @@index([date])
+  @@index([timeOffCode])
+  @@map("timesheet_entries")
+}
+
+/// Invoice model for vendor billing
+model Invoice {
+  id                 String        @id @default(cuid())
+  vendorId           String
+  invoiceNumber      String        @unique
+  invoiceDate        DateTime      @db.Date
+  billingPeriodStart DateTime      @db.Date
+  billingPeriodEnd   DateTime      @db.Date
+  amount             Decimal       @db.Decimal(14, 2)
+  currency           String        @default("GBP") @db.VarChar(3)
+  status             InvoiceStatus @default(pending)
+  expectedAmount     Decimal?      @db.Decimal(14, 2)
+  discrepancy        Decimal?      @db.Decimal(14, 2)
+  toleranceThreshold Decimal?      @db.Decimal(5, 2) // Percentage
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  // Relationships
+  vendor Vendor       @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  tags   InvoiceTag[]
+
+  @@index([vendorId])
+  @@index([invoiceNumber])
+  @@index([invoiceDate])
+  @@index([status])
+  @@index([billingPeriodStart])
+  @@index([billingPeriodEnd])
+  @@map("invoices")
+}
+
+/// Contract model for vendor agreements
+model Contract {
+  id          String         @id @default(cuid())
+  vendorId    String
+  title       String
+  startDate   DateTime       @db.Date
+  endDate     DateTime       @db.Date
+  value       Decimal        @db.Decimal(14, 2)
+  currency    String         @default("GBP") @db.VarChar(3)
+  status      ContractStatus @default(draft)
+  documentUrl String?
+  // Document storage fields for S3-compatible storage
+  documentKey       String?            // S3 object key
+  documentName      String?            // Original file name
+  documentSize      Int?               // File size in bytes
+  documentType      String?            // MIME type (e.g., application/pdf)
+  documentUploadedAt DateTime?         // When the document was uploaded
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relationships
+  vendor     Vendor            @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  aiAnalysis ContractAnalysis?
+  tags       ContractTag[]
+
+  @@index([vendorId])
+  @@index([status])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([title])
+  @@map("contracts")
+}
+
+/// ContractAnalysis model for AI-extracted contract data
+model ContractAnalysis {
+  id                 String   @id @default(cuid())
+  contractId         String   @unique
+  expirationDate     String?
+  renewalTerms       String?  @db.Text
+  sla                String?  @db.Text
+  paymentTerms       String?  @db.Text
+  noticePeriod       String?
+  keyContacts        String?  @db.Text
+  scopeSummary       String?  @db.Text
+  terminationClauses String?  @db.Text
+  confidenceScores   Json     @default("{}")
+  analyzedAt         DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  // Relationships
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([analyzedAt])
+  @@map("contract_analyses")
+}
+
+/// Tag model for categorization
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String?  @db.VarChar(7) // Hex color code
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships (many-to-many via junction tables)
+  vendors     VendorTag[]
+  teamMembers TeamMemberTag[]
+  invoices    InvoiceTag[]
+  contracts   ContractTag[]
+
+  @@index([name])
+  @@map("tags")
+}
+
+/// ExchangeRate model for currency conversion
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  fromCurrency String   @db.VarChar(3)
+  toCurrency   String   @db.VarChar(3)
+  rate         Decimal  @db.Decimal(12, 6)
+  lastUpdated  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([fromCurrency, toCurrency])
+  @@index([fromCurrency])
+  @@index([toCurrency])
+  @@index([lastUpdated])
+  @@map("exchange_rates")
+}
+
+/// SystemSettings model for application-wide configuration
+/// Stores key-value pairs for various settings categories
+model SystemSettings {
+  id          String   @id @default(cuid())
+  category    String   @db.VarChar(50)  // e.g., "currency", "dashboard", "integrations"
+  key         String   @db.VarChar(100)
+  value       String   @db.Text         // JSON string for complex values
+  description String?  @db.Text
+  updatedBy   String?                   // User ID who last updated
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([category, key])
+  @@index([category])
+  @@index([key])
+  @@map("system_settings")
+}
+
+// ============================================================================
+// JUNCTION TABLES (Many-to-Many Relationships)
+// ============================================================================
+
+/// Junction table for Vendor-Tag relationship
+model VendorTag {
+  vendorId  String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([vendorId, tagId])
+  @@index([vendorId])
+  @@index([tagId])
+  @@map("vendor_tags")
+}
+
+/// Junction table for TeamMember-Tag relationship
+model TeamMemberTag {
+  teamMemberId String
+  tagId        String
+  createdAt    DateTime @default(now())
+
+  teamMember TeamMember @relation(fields: [teamMemberId], references: [id], onDelete: Cascade)
+  tag        Tag        @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([teamMemberId, tagId])
+  @@index([teamMemberId])
+  @@index([tagId])
+  @@map("team_member_tags")
+}
+
+/// Junction table for Invoice-Tag relationship
+model InvoiceTag {
+  invoiceId String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([invoiceId, tagId])
+  @@index([invoiceId])
+  @@index([tagId])
+  @@map("invoice_tags")
+}
+
+/// Junction table for Contract-Tag relationship
+model ContractTag {
+  contractId String
+  tagId      String
+  createdAt  DateTime @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  tag      Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contractId, tagId])
+  @@index([contractId])
+  @@index([tagId])
+  @@map("contract_tags")
+}
