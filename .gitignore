@@ -45,6 +45,9 @@ next-env.d.ts
 # Prisma
 /prisma/migrations/**/migration_lock.toml
 
+# Database backups (use git add -f to force add if needed)
+/prisma/backups/*.sql
+
 # Testing
 /playwright-report/
 /test-results/
