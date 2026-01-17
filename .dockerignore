@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env
+.env.local
+.env*.local
+docker-compose.yml
+Dockerfile
+.dockerignore
+prisma/backups
+*.log
+.DS_Store

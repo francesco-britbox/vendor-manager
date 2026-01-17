@@ -478,14 +478,14 @@ export function ReportsDashboard() {
                 <div className="space-y-1">
                   <Label className="text-xs">Vendor</Label>
                   <Select
-                    value={selectedVendors[0] || ''}
-                    onValueChange={(value) => setSelectedVendors(value ? [value] : [])}
+                    value={selectedVendors[0] || 'all'}
+                    onValueChange={(value) => setSelectedVendors(value === 'all' ? [] : [value])}
                   >
                     <SelectTrigger className="w-[200px]">
                       <SelectValue placeholder="All vendors" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All vendors</SelectItem>
+                      <SelectItem value="all">All vendors</SelectItem>
                       {vendors.map((vendor) => (
                         <SelectItem key={vendor.id} value={vendor.id}>
                           {vendor.name}
@@ -497,12 +497,12 @@ export function ReportsDashboard() {
 
                 <div className="space-y-1">
                   <Label className="text-xs">Currency</Label>
-                  <Select value={currency} onValueChange={setCurrency}>
+                  <Select value={currency || 'all'} onValueChange={(value) => setCurrency(value === 'all' ? '' : value)}>
                     <SelectTrigger className="w-[120px]">
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All</SelectItem>
+                      <SelectItem value="all">All</SelectItem>
                       <SelectItem value="GBP">GBP</SelectItem>
                       <SelectItem value="USD">USD</SelectItem>
                       <SelectItem value="EUR">EUR</SelectItem>

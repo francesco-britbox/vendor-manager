@@ -6,6 +6,9 @@
  * DELETE /api/contracts/[id]/analyze - Delete analysis for a contract
  */
 
+// Force dynamic rendering to avoid build-time issues with pdf-parse
+export const dynamic = 'force-dynamic';
+
 import { NextResponse } from 'next/server';
 import {
   requireWritePermission,

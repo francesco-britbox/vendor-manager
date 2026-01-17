@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: vendor-manager-db
+    restart: always
+    environment:
+      POSTGRES_USER: vendorapp
+      POSTGRES_PASSWORD: vendorapp_secret_2025
+      POSTGRES_DB: presence_manager
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vendorapp -d presence_manager"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vendor-manager-app
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://vendorapp:vendorapp_secret_2025@postgres:5432/presence_manager
+      NEXTAUTH_URL: http://13.134.100.204:3000
+      NEXTAUTH_SECRET: production-secret-change-me-2025-xyz
+      NODE_ENV: production
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
