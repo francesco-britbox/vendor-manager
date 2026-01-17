@@ -77,7 +77,7 @@ export function CurrencyConverter() {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-[1fr,auto,1fr] items-end gap-4">
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <Label htmlFor="amount">Amount</Label>
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
@@ -117,7 +117,7 @@ export function CurrencyConverter() {
             <ArrowRightLeft className="h-4 w-4" />
           </Button>
 
-          <div className="space-y-2">
+          <div className="space-y-2 min-w-0">
             <Label>To</Label>
             <div className="h-9 rounded-md border bg-muted/50 px-3 py-2 text-sm">
               {result ? (
