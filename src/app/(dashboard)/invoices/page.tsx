@@ -1,7 +1,7 @@
 import { InvoiceConfig } from '@/components/invoices';
 
 export const metadata = {
-  title: 'Invoices | Presence Manager',
+  title: 'Invoices | Vendors Manager',
   description: 'Manage invoices and validate against timesheet spend',
 };
 

@@ -57,7 +57,7 @@ export function LoginForm() {
           Sign In
         </CardTitle>
         <CardDescription className="text-center">
-          Enter your credentials to access Presence Manager
+          Enter your credentials to access Vendors Manager
         </CardDescription>
       </CardHeader>
       <CardContent>

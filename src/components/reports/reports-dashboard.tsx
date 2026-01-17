@@ -223,6 +223,14 @@ export function ReportsDashboard() {
     setDateTo(to.toISOString().split('T')[0]);
   };
 
+  const setLastMonth = () => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), 0);
+    setDateFrom(from.toISOString().split('T')[0]);
+    setDateTo(to.toISOString().split('T')[0]);
+  };
+
   const setCurrentMonth = () => {
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -490,6 +498,9 @@ export function ReportsDashboard() {
                   </Button>
                   <Button size="sm" variant="ghost" onClick={() => setQuickFilter(90)} className="text-xs">
                     Last 90 days
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={setLastMonth} className="text-xs">
+                    Last Month
                   </Button>
                   <Button size="sm" variant="ghost" onClick={setCurrentMonth} className="text-xs">
                     This Month

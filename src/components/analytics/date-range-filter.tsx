@@ -41,6 +41,15 @@ export function DateRangeFilter({
     onDateToChange(to.toISOString().split('T')[0]);
   };
 
+  const setLastMonth = () => {
+    const now = new Date();
+    const from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const to = new Date(now.getFullYear(), now.getMonth(), 0);
+
+    onDateFromChange(from.toISOString().split('T')[0]);
+    onDateToChange(to.toISOString().split('T')[0]);
+  };
+
   const setCurrentMonth = () => {
     const now = new Date();
     const from = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -131,6 +140,14 @@ export function DateRangeFilter({
               className="text-xs"
             >
               Last 90 days
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={setLastMonth}
+              className="text-xs"
+            >
+              Last Month
             </Button>
             <Button
               size="sm"

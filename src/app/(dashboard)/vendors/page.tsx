@@ -1,7 +1,7 @@
 import { VendorConfig } from '@/components/vendors';
 
 export const metadata = {
-  title: 'Vendors | Presence Manager',
+  title: 'Vendors | Vendors Manager',
   description: 'Manage your vendors and their information',
 };
 

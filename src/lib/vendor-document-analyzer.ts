@@ -174,7 +174,7 @@ export interface DocumentAnalyzerOptions {
 /**
  * System prompt for vendor document analysis (used with structured outputs)
  */
-const VENDOR_DOCUMENT_ANALYSIS_PROMPT = `You are an expert contract and document analyst. Analyze the provided document text and extract key information.
+const VENDOR_DOCUMENT_ANALYSIS_PROMPT = `You are an expert contract and document analyst. Analyze the provided document and extract key information.
 
 IMPORTANT DATE FORMAT: All dates must be in ISO 8601 format (YYYY-MM-DD). For example: "2025-12-31" not "December 31, 2025".
 
@@ -184,6 +184,28 @@ For each field you extract, assign a confidence score:
 - 0.8-1.0: Information clearly stated
 
 Return null for any field where information cannot be found.`;
+
+/**
+ * System prompt for vision-based document analysis (scanned/image PDFs)
+ */
+const VENDOR_DOCUMENT_VISION_PROMPT = `You are an expert contract and document analyst. Analyze the provided document images and extract key information. These images are pages from a scanned or image-based PDF document.
+
+IMPORTANT DATE FORMAT: All dates must be in ISO 8601 format (YYYY-MM-DD). For example: "2025-12-31" not "December 31, 2025".
+
+For each field you extract, assign a confidence score:
+- 0.0: Information not found
+- 0.1-0.7: Information partially found or unclear (or hard to read in image)
+- 0.8-1.0: Information clearly visible and readable
+
+Return null for any field where information cannot be found or is not legible.`;
+
+/**
+ * Check if PDF appears to be image-based (scanned) by analyzing text content
+ */
+function isImageBasedPDF(textLength: number, pageCount: number): boolean {
+  const avgTextPerPage = textLength / Math.max(pageCount, 1);
+  return avgTextPerPage < 100;
+}
 
 /**
  * AI Analysis result structure (matches schema)
@@ -366,24 +388,50 @@ export async function analyzeVendorDocument(
       };
     }
 
-    if (!extractionResult.text || extractionResult.text.length < 50) {
-      await updateExtractionStatus(documentId, 'failed', 'Insufficient extractable text');
-      return {
-        success: false,
-        error: 'The document does not contain enough extractable text. It may be a scanned document or image-based PDF.',
-      };
-    }
-
     // Determine model
     const model = options.model || getDefaultModel(provider);
+    const effectiveApiKey = apiKey || (provider === 'anthropic' ? process.env.ANTHROPIC_API_KEY! : process.env.OPENAI_API_KEY!);
 
-    // Analyze with AI (returns structured data)
-    const analysisData = await runAIAnalysis(
-      extractionResult.text,
-      provider,
-      apiKey || (provider === 'anthropic' ? process.env.ANTHROPIC_API_KEY! : process.env.OPENAI_API_KEY!),
-      model
-    );
+    // Check if PDF is image-based (scanned) - less than 100 chars per page on average
+    const textLength = extractionResult.text?.length || 0;
+    const pageCount = extractionResult.pageCount || 1;
+    const documentIsImageBased = isImageBasedPDF(textLength, pageCount);
+
+    let analysisData: AIAnalysisData;
+    let analysisMode: 'text' | 'vision' = 'text';
+
+    if (documentIsImageBased) {
+      // Image-based PDF - send PDF directly to AI for vision analysis
+      console.log(`[Analyzer] Detected image-based PDF (${textLength} chars, ${pageCount} pages). Using document vision analysis.`);
+      analysisMode = 'vision';
+
+      // Analyze with vision - send PDF buffer directly
+      analysisData = await runPDFVisionAnalysis(
+        pdfBuffer,
+        provider,
+        effectiveApiKey,
+        model
+      );
+    } else {
+      // Text-based PDF - use standard text analysis
+      if (!extractionResult.text || extractionResult.text.length < 50) {
+        await updateExtractionStatus(documentId, 'failed', 'The document does not contain enough extractable text');
+        return {
+          success: false,
+          error: 'The document does not contain enough extractable text.',
+        };
+      }
+
+      console.log(`[Analyzer] Text-based PDF (${textLength} chars). Using text analysis.`);
+
+      // Analyze with AI (returns structured data)
+      analysisData = await runAIAnalysis(
+        extractionResult.text,
+        provider,
+        effectiveApiKey,
+        model
+      );
+    }
 
     const processingTime = Date.now() - startTime;
 
@@ -437,8 +485,8 @@ export async function analyzeVendorDocument(
       analysis: transformAnalysis(dbAnalysis),
       details: {
         provider,
-        model,
-        textLength: extractionResult.text.length,
+        model: `${model}${analysisMode === 'vision' ? ' (vision)' : ''}`,
+        textLength: textLength,
         processingTime,
       },
     };
@@ -502,6 +550,9 @@ async function analyzeWithClaude(
     },
   });
 
+  // Create a mutable copy of the schema for Anthropic SDK
+  const schemaForAnthropic = JSON.parse(JSON.stringify(DOCUMENT_ANALYSIS_SCHEMA.schema));
+
   // Use tool with strict mode for guaranteed schema compliance
   const response = await client.messages.create({
     model,
@@ -510,9 +561,7 @@ async function analyzeWithClaude(
     tools: [{
       name: 'document_analysis',
       description: 'Extract and structure document information',
-      input_schema: DOCUMENT_ANALYSIS_SCHEMA.schema,
-      // @ts-expect-error - strict is a beta feature
-      strict: true,
+      input_schema: schemaForAnthropic,
     }],
     tool_choice: { type: 'tool', name: 'document_analysis' },
     messages: [
@@ -560,6 +609,86 @@ async function analyzeWithOpenAI(
 
   // With structured outputs, parsing should always succeed
   return JSON.parse(content) as AIAnalysisData;
+}
+
+/**
+ * Run AI analysis on PDF directly (for scanned/image-based PDFs)
+ * Sends the PDF as a document to AI with vision capabilities
+ */
+async function runPDFVisionAnalysis(
+  pdfBuffer: Buffer,
+  provider: AIProvider,
+  apiKey: string,
+  model: string
+): Promise<AIAnalysisData> {
+  if (provider === 'anthropic') {
+    return await analyzeWithClaudePDF(pdfBuffer, apiKey, model);
+  } else {
+    // OpenAI doesn't support PDF directly, fall back to error for now
+    throw new Error('OpenAI does not support direct PDF analysis. Please configure Anthropic for scanned document analysis.');
+  }
+}
+
+/**
+ * Analyze PDF directly with Claude using document type
+ * Claude can process PDFs natively without conversion to images
+ */
+async function analyzeWithClaudePDF(
+  pdfBuffer: Buffer,
+  apiKey: string,
+  model: string
+): Promise<AIAnalysisData> {
+  const Anthropic = (await import('@anthropic-ai/sdk')).default;
+  const client = new Anthropic({
+    apiKey,
+    defaultHeaders: {
+      'anthropic-beta': 'pdfs-2024-09-25,structured-outputs-2025-11-13',
+    },
+  });
+
+  // Convert PDF to base64
+  const pdfBase64 = pdfBuffer.toString('base64');
+
+  // Create a mutable copy of the schema for Anthropic SDK
+  const schemaForAnthropic = JSON.parse(JSON.stringify(DOCUMENT_ANALYSIS_SCHEMA.schema));
+
+  const response = await client.messages.create({
+    model,
+    max_tokens: 4096,
+    system: VENDOR_DOCUMENT_VISION_PROMPT,
+    tools: [{
+      name: 'document_analysis',
+      description: 'Extract and structure document information from the PDF',
+      input_schema: schemaForAnthropic,
+    }],
+    tool_choice: { type: 'tool', name: 'document_analysis' },
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: pdfBase64,
+            },
+          },
+          {
+            type: 'text',
+            text: 'Analyze this scanned document and extract the key information.',
+          },
+        ],
+      },
+    ],
+  });
+
+  const toolUse = response.content.find(block => block.type === 'tool_use');
+  if (!toolUse || toolUse.type !== 'tool_use') {
+    throw new Error('No structured response from Claude PDF analysis');
+  }
+
+  return toolUse.input as AIAnalysisData;
 }
 
 /**

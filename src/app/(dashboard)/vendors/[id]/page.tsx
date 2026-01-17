@@ -12,12 +12,12 @@ export async function generateMetadata({ params }: VendorDetailPageProps) {
 
   if (!vendor) {
     return {
-      title: 'Vendor Not Found | Presence Manager',
+      title: 'Vendor Not Found | Vendors Manager',
     };
   }
 
   return {
-    title: `${vendor.name} | Vendors | Presence Manager`,
+    title: `${vendor.name} | Vendors | Vendors Manager`,
     description: vendor.serviceDescription || `View details for ${vendor.name}`,
   };
 }

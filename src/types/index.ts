@@ -1,4 +1,4 @@
-// Core entity types for the Presence Manager application
+// Core entity types for the Vendors Manager application
 
 export type PermissionLevel = "denied" | "view" | "write" | "admin";
 

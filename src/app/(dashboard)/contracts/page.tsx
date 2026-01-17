@@ -1,7 +1,7 @@
 import { ContractConfig } from '@/components/contracts';
 
 export const metadata = {
-  title: 'Contracts | Presence Manager',
+  title: 'Contracts | Vendors Manager',
   description: 'Manage your contracts and track their lifecycle',
 };
 

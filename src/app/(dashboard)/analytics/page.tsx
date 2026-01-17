@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { AnalyticsDashboard } from '@/components/analytics';
 
 export const metadata = {
-  title: 'Analytics Dashboard | Presence Manager',
+  title: 'Analytics Dashboard | Vendors Manager',
   description: 'Comprehensive analytics dashboard with spend tracking, vendor metrics, and contract insights',
 };
 

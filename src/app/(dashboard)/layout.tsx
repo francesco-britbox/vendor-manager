@@ -13,7 +13,7 @@ export default function DashboardLayout({
         <div className="flex h-14 items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-6">
             <Link href="/dashboard" className="text-lg font-semibold hover:opacity-80">
-              Presence Manager
+              Vendors Manager
             </Link>
             <MainNav />
           </div>

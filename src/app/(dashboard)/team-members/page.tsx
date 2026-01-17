@@ -1,7 +1,7 @@
 import { TeamMemberConfig } from '@/components/team-members';
 
 export const metadata = {
-  title: 'Team Members | Presence Manager',
+  title: 'Team Members | Vendors Manager',
   description: 'Manage your team members and their assignments',
 };
 

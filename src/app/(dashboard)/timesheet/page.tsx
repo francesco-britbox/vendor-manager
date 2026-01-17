@@ -1,7 +1,7 @@
 import { TimesheetManagement } from '@/components/timesheet';
 
 export const metadata = {
-  title: 'Timesheet | Presence Manager',
+  title: 'Timesheet | Vendors Manager',
   description: 'Enter and manage team member timesheets and track monthly hours',
 };
 
