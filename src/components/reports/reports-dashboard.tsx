@@ -66,6 +66,7 @@ import type {
   ContractStatusReport,
   ExportConfig,
 } from '@/types/reports';
+import { VendorDocumentAnalytics, VendorDocumentExpiryReport } from '@/components/vendor-documents';
 
 import { exportReportToCSV, downloadCSV } from '@/lib/reports/csv-export';
 import { exportReportToPDF, downloadPDF } from '@/lib/reports/pdf-export';
@@ -119,6 +120,22 @@ const REPORT_CONFIGS = [
     icon: FileText,
     color: 'text-rose-500',
     bgColor: 'bg-rose-50',
+  },
+  {
+    id: 'document-analytics' as ReportType,
+    name: 'Document Analytics',
+    description: 'Vendor document analytics with AI analysis status and expiry tracking',
+    icon: FileText,
+    color: 'text-indigo-500',
+    bgColor: 'bg-indigo-50',
+  },
+  {
+    id: 'document-expiry' as ReportType,
+    name: 'Document Expiry',
+    description: 'Document expiration report with renewal deadline tracking',
+    icon: CalendarOff,
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-50',
   },
 ];
 
@@ -395,8 +412,18 @@ export function ReportsDashboard() {
         </div>
       </div>
 
-      {/* Filters */}
-      {selectedReport && (
+      {/* Document Analytics - Self-Contained Component */}
+      {selectedReport === 'document-analytics' && (
+        <VendorDocumentAnalytics />
+      )}
+
+      {/* Document Expiry Report - Self-Contained Component */}
+      {selectedReport === 'document-expiry' && (
+        <VendorDocumentExpiryReport />
+      )}
+
+      {/* Filters - Only for traditional reports */}
+      {selectedReport && !['document-analytics', 'document-expiry'].includes(selectedReport) && (
         <Card data-testid="report-filters">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">

@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { VendorDialog } from './vendor-dialog';
+import { VendorDocumentsSection } from '@/components/vendor-documents';
 import {
   ArrowLeft,
   Building2,
@@ -318,6 +319,12 @@ export function VendorDetail({ vendor: initialVendor }: VendorDetailProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* Vendor Documents Section */}
+      <VendorDocumentsSection
+        vendorId={vendor.id}
+        vendorName={vendor.name}
+      />
 
       {/* Edit Dialog */}
       <VendorDialog

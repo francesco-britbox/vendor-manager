@@ -57,6 +57,21 @@ enum TimeOffCode {
   UNPAID // Unpaid Leave
 }
 
+enum DocumentType {
+  CONTRACT            // Main contract document
+  SOW                 // Statement of Work
+  SLA                 // Service Level Agreement
+  NDA                 // Non-Disclosure Agreement
+  MSA                 // Master Service Agreement
+  AMENDMENT           // Contract amendment
+  ADDENDUM            // Contract addendum
+  INVOICE             // Invoice document
+  PROPOSAL            // Proposal document
+  INSURANCE           // Insurance certificate
+  COMPLIANCE          // Compliance documentation
+  OTHER               // Other document types
+}
+
 // ============================================================================
 // MODELS
 // ============================================================================
@@ -95,11 +110,89 @@ model Vendor {
   invoices    Invoice[]
   contracts   Contract[]
   tags        VendorTag[]
+  documents   VendorDocument[]
 
   @@index([name])
   @@index([status])
   @@index([createdAt])
   @@map("vendors")
+}
+
+/// VendorDocument model for storing multiple documents per vendor
+model VendorDocument {
+  id               String       @id @default(cuid())
+  vendorId         String
+  documentType     DocumentType @default(OTHER)
+  title            String?                        // User-friendly document title
+  description      String?      @db.Text          // Description of the document
+  // File storage fields
+  documentKey      String                         // S3 object key
+  documentName     String                         // Original file name
+  documentSize     Int                            // File size in bytes
+  documentMimeType String                         // MIME type (e.g., application/pdf)
+  // AI Extraction fields
+  enableAiExtraction Boolean   @default(true)     // Whether AI extraction was enabled
+  extractionStatus   String?                      // 'pending', 'processing', 'completed', 'failed'
+  extractionError    String?   @db.Text           // Error message if extraction failed
+  // Dates
+  documentDate     DateTime?    @db.Date          // Document effective date (e.g., contract start)
+  expiryDate       DateTime?    @db.Date          // Document expiry date
+  uploadedAt       DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  // Relationships
+  vendor     Vendor               @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  aiAnalysis VendorDocumentAnalysis?
+
+  @@index([vendorId])
+  @@index([documentType])
+  @@index([expiryDate])
+  @@index([uploadedAt])
+  @@map("vendor_documents")
+}
+
+/// VendorDocumentAnalysis model for AI-extracted document data
+model VendorDocumentAnalysis {
+  id                   String   @id @default(cuid())
+  documentId           String   @unique
+  // Core extracted fields
+  contractCreationDate String?
+  expiryRenewalDate    String?
+  involvedEntities     String?  @db.Text          // JSON array of company names
+  // SLA fields
+  slaDetails           String?  @db.Text          // Service Level Agreements
+  uptimeGuarantee      String?
+  responseTime         String?
+  // Scope and terms
+  scopeOfWork          String?  @db.Text
+  termsAndConditions   String?  @db.Text
+  terminationClauses   String?  @db.Text
+  // Commercial terms
+  commercialTerms      String?  @db.Text          // Pricing, payment terms, etc.
+  paymentSchedule      String?
+  totalValue           String?
+  currency             String?
+  // Additional fields
+  noticePeriod         String?
+  renewalTerms         String?  @db.Text
+  keyContacts          String?  @db.Text          // JSON array
+  summary              String?  @db.Text
+  // Metadata
+  confidenceScores     Json     @default("{}")    // Per-field confidence
+  aiProvider           String?                    // 'openai' or 'anthropic'
+  aiModel              String?                    // Model used for extraction
+  processingTimeMs     Int?                       // Time taken for AI processing
+  analyzedAt           DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  // Relationships
+  document VendorDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@index([analyzedAt])
+  @@map("vendor_document_analyses")
 }
 
 /// Role model representing job roles/positions
@@ -335,6 +428,61 @@ model SystemSettings {
   @@index([category])
   @@index([key])
   @@map("system_settings")
+}
+
+/// AIApiConfig model for storing encrypted API keys for AI services
+model AIApiConfig {
+  id              String   @id @default(cuid())
+  provider        String   @unique @db.VarChar(50)  // 'anthropic' or 'openai'
+  encryptedApiKey String   @db.Text                  // Encrypted API key
+  isEnabled       Boolean  @default(true)
+  defaultModel    String?  @db.VarChar(100)          // Default model for this provider
+  usageCount      Int      @default(0)               // Number of API calls made
+  lastUsedAt      DateTime?
+  lastTestedAt    DateTime?                          // When connection was last tested
+  lastTestStatus  String?  @db.VarChar(20)           // 'success', 'error', 'timeout'
+  lastTestMessage String?  @db.Text                  // Last test result message
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([provider])
+  @@index([isEnabled])
+  @@map("ai_api_configs")
+}
+
+/// AIDefaultProvider model for storing the user's preferred default AI provider
+model AIDefaultProvider {
+  id        String   @id @default(cuid())
+  provider  String   @db.VarChar(50)  // 'anthropic' or 'openai'
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_default_provider")
+}
+
+/// AIUsageLog model for tracking API usage and costs
+model AIUsageLog {
+  id             String   @id @default(cuid())
+  provider       String   @db.VarChar(50)           // 'anthropic' or 'openai'
+  model          String   @db.VarChar(100)          // Model used
+  operation      String   @db.VarChar(100)          // 'document_analysis', etc.
+  inputTokens    Int?                               // Tokens in request
+  outputTokens   Int?                               // Tokens in response
+  totalTokens    Int?                               // Total tokens
+  estimatedCost  Decimal? @db.Decimal(10, 6)        // Estimated cost in USD
+  processingTime Int?                               // Processing time in ms
+  status         String   @default("success")       // 'success', 'failed', 'rate_limited'
+  errorMessage   String?  @db.Text
+  // Reference to what was analyzed
+  documentId     String?                            // VendorDocument ID if applicable
+  contractId     String?                            // Contract ID if applicable
+  createdAt      DateTime @default(now())
+
+  @@index([provider])
+  @@index([operation])
+  @@index([createdAt])
+  @@index([status])
+  @@map("ai_usage_logs")
 }
 
 // ============================================================================

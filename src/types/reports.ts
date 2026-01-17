@@ -6,7 +6,9 @@ export type ReportType =
   | 'timesheets'
   | 'time-off'
   | 'invoice-validation'
-  | 'contract-status';
+  | 'contract-status'
+  | 'document-analytics'
+  | 'document-expiry';
 
 export type ExportFormat = 'csv' | 'pdf';
 

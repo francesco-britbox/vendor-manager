@@ -8,4 +8,5 @@ export { CurrencySettingsForm } from './currency-settings-form';
 export { FormatSettingsForm } from './format-settings-form';
 export { DashboardSettingsForm } from './dashboard-settings-form';
 export { IntegrationSettingsForm } from './integration-settings-form';
+export { AISettingsForm } from './ai-settings-form';
 export { SettingsConfig } from './settings-config';

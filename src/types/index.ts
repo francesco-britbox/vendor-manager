@@ -18,6 +18,40 @@ export type TimeOffCode =
   | "CAS" // Casual Leave
   | "UNPAID"; // Unpaid Leave
 
+// Document types for vendor documents
+export type DocumentType =
+  | "CONTRACT"
+  | "SOW"
+  | "SLA"
+  | "NDA"
+  | "MSA"
+  | "AMENDMENT"
+  | "ADDENDUM"
+  | "INVOICE"
+  | "PROPOSAL"
+  | "INSURANCE"
+  | "COMPLIANCE"
+  | "OTHER";
+
+// Document type labels for display
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  CONTRACT: "Contract",
+  SOW: "Statement of Work",
+  SLA: "Service Level Agreement",
+  NDA: "Non-Disclosure Agreement",
+  MSA: "Master Service Agreement",
+  AMENDMENT: "Amendment",
+  ADDENDUM: "Addendum",
+  INVOICE: "Invoice",
+  PROPOSAL: "Proposal",
+  INSURANCE: "Insurance Certificate",
+  COMPLIANCE: "Compliance Document",
+  OTHER: "Other",
+};
+
+// AI Provider types
+export type AIProvider = "anthropic" | "openai";
+
 // Base entity interface
 export interface BaseEntity {
   id: string;
@@ -128,6 +162,95 @@ export interface DocumentUploadResponse {
   documentType: string;
   documentUploadedAt: Date;
   downloadUrl: string;
+}
+
+// Vendor Document interface
+export interface VendorDocument extends BaseEntity {
+  vendorId: string;
+  documentType: DocumentType;
+  title?: string;
+  description?: string;
+  documentKey: string;
+  documentName: string;
+  documentSize: number;
+  documentMimeType: string;
+  enableAiExtraction: boolean;
+  extractionStatus?: string;
+  extractionError?: string;
+  documentDate?: Date;
+  expiryDate?: Date;
+  uploadedAt: Date;
+  aiAnalysis?: VendorDocumentAnalysis;
+}
+
+// Vendor Document Analysis interface
+export interface VendorDocumentAnalysis {
+  id: string;
+  documentId: string;
+  contractCreationDate?: string;
+  expiryRenewalDate?: string;
+  involvedEntities?: string;
+  slaDetails?: string;
+  uptimeGuarantee?: string;
+  responseTime?: string;
+  scopeOfWork?: string;
+  termsAndConditions?: string;
+  terminationClauses?: string;
+  commercialTerms?: string;
+  paymentSchedule?: string;
+  totalValue?: string;
+  currency?: string;
+  noticePeriod?: string;
+  renewalTerms?: string;
+  keyContacts?: string;
+  summary?: string;
+  confidenceScores: Record<string, number>;
+  aiProvider?: string;
+  aiModel?: string;
+  processingTimeMs?: number;
+  analyzedAt: Date;
+}
+
+// AI API Configuration
+export interface AIApiConfig {
+  id: string;
+  provider: AIProvider;
+  isEnabled: boolean;
+  defaultModel?: string;
+  usageCount: number;
+  lastUsedAt?: Date;
+  hasApiKey: boolean; // Don't expose the actual key
+  maskedApiKey?: string; // Masked version for display (e.g., "••••••••abcd")
+  lastTestedAt?: Date; // When connection was last tested
+  lastTestStatus?: 'success' | 'error' | 'timeout'; // Last test result
+  lastTestMessage?: string; // Last test result message
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// AI Usage Log
+export interface AIUsageLog {
+  id: string;
+  provider: string;
+  model: string;
+  operation: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  totalTokens?: number;
+  estimatedCost?: number;
+  processingTime?: number;
+  status: string;
+  errorMessage?: string;
+  documentId?: string;
+  contractId?: string;
+  createdAt: Date;
+}
+
+// AI Settings for the application
+export interface AISettings {
+  anthropic: AIApiConfig | null;
+  openai: AIApiConfig | null;
+  defaultProvider: AIProvider | null;
 }
 
 // Contract AI Analysis interface

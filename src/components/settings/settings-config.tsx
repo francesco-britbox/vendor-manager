@@ -5,6 +5,7 @@ import { CurrencySettingsForm } from './currency-settings-form';
 import { FormatSettingsForm } from './format-settings-form';
 import { DashboardSettingsForm } from './dashboard-settings-form';
 import { IntegrationSettingsForm } from './integration-settings-form';
+import { AISettingsForm } from './ai-settings-form';
 import { AdminGuard } from '@/components/permissions/permission-guard';
 import { AlertCircle, CheckCircle2, Shield } from 'lucide-react';
 import type {
@@ -174,6 +175,9 @@ export function SettingsConfig({ initialSettings }: SettingsConfigProps) {
           onSubmit={handleIntegrationSubmit}
           isLoading={isLoading.integrations}
         />
+
+        {/* AI Settings */}
+        <AISettingsForm />
       </div>
     </AdminGuard>
   );
