@@ -11,7 +11,7 @@ import {
   isErrorResponse,
 } from '@/lib/api-permissions';
 import {
-  downloadFile,
+  downloadFileFromS3,
   getPresignedDownloadUrl,
   isS3Configured,
 } from '@/lib/storage';
@@ -29,17 +29,6 @@ export async function GET(
       return authResult;
     }
 
-    // Check if S3 is configured
-    if (!isS3Configured()) {
-      return NextResponse.json<ApiResponse<null>>(
-        {
-          success: false,
-          error: 'Document storage is not configured',
-        },
-        { status: 503 }
-      );
-    }
-
     const { id } = await params;
 
     // Validate contract ID
@@ -54,14 +43,17 @@ export async function GET(
       );
     }
 
-    // Get contract with document info
+    // Get contract with document info including binary data
     const contract = await prisma.contract.findUnique({
       where: { id },
       select: {
         id: true,
         documentKey: true,
+        documentData: true,
         documentName: true,
         documentType: true,
+        documentSize: true,
+        storageType: true,
       },
     });
 
@@ -75,7 +67,7 @@ export async function GET(
       );
     }
 
-    if (!contract.documentKey) {
+    if (!contract.documentKey && !contract.documentData) {
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
@@ -85,29 +77,86 @@ export async function GET(
       );
     }
 
-    // Check if redirect to presigned URL is requested
+    let fileData: { body: Uint8Array; contentType: string; size: number };
+
+    // Check if redirect to presigned URL is requested (only works for S3 storage)
     const { searchParams } = new URL(request.url);
     const redirect = searchParams.get('redirect') === 'true';
 
-    if (redirect) {
-      // Generate presigned URL and redirect
-      const presignedUrl = await getPresignedDownloadUrl(
-        contract.documentKey,
-        3600 // 1 hour
-      );
-      return NextResponse.redirect(presignedUrl);
-    }
+    // Check storage type and download accordingly
+    if (contract.storageType === 'database' && contract.documentData) {
+      // Download from database
+      if (redirect) {
+        // Can't redirect for database storage, just serve the file
+        console.warn('Redirect requested but document is stored in database, serving directly');
+      }
 
-    // Download and stream the file
-    const { body, contentType, size } = await downloadFile(contract.documentKey);
+      fileData = {
+        body: new Uint8Array(contract.documentData),
+        contentType: contract.documentType || 'application/octet-stream',
+        size: contract.documentSize || contract.documentData.length,
+      };
+    } else if (contract.storageType === 's3' && contract.documentKey) {
+      // Fallback to S3 for documents that haven't been migrated yet
+      if (!isS3Configured()) {
+        return NextResponse.json<ApiResponse<null>>(
+          {
+            success: false,
+            error: 'Document is stored in S3 but S3 is not configured. Please run migration.',
+          },
+          { status: 503 }
+        );
+      }
+
+      if (redirect) {
+        // Generate presigned URL and redirect
+        const presignedUrl = await getPresignedDownloadUrl(
+          contract.documentKey,
+          3600 // 1 hour
+        );
+        return NextResponse.redirect(presignedUrl);
+      }
+
+      fileData = await downloadFileFromS3(contract.documentKey);
+    } else if (contract.documentKey) {
+      // Legacy case: no storageType set but has documentKey (assume S3)
+      if (!isS3Configured()) {
+        return NextResponse.json<ApiResponse<null>>(
+          {
+            success: false,
+            error: 'Document storage is not configured. Please run migration.',
+          },
+          { status: 503 }
+        );
+      }
+
+      if (redirect) {
+        // Generate presigned URL and redirect
+        const presignedUrl = await getPresignedDownloadUrl(
+          contract.documentKey,
+          3600 // 1 hour
+        );
+        return NextResponse.redirect(presignedUrl);
+      }
+
+      fileData = await downloadFileFromS3(contract.documentKey);
+    } else {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          error: 'Document data not found',
+        },
+        { status: 404 }
+      );
+    }
 
     const fileName = contract.documentName || 'document';
 
     // Create response with proper headers - use type assertion for Uint8Array
-    return new Response(body as unknown as BodyInit, {
+    return new Response(fileData.body as unknown as BodyInit, {
       headers: {
-        'Content-Type': contentType,
-        'Content-Length': size.toString(),
+        'Content-Type': fileData.contentType,
+        'Content-Length': fileData.size.toString(),
         'Content-Disposition': `attachment; filename="${encodeURIComponent(fileName)}"`,
         'Cache-Control': 'private, no-cache, no-store, must-revalidate',
       },

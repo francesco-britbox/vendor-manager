@@ -2,14 +2,17 @@
  * Contract Analyzer Service
  *
  * Orchestrates the full contract analysis pipeline:
- * 1. Fetch document from S3
+ * 1. Fetch document from database (or S3 for legacy documents)
  * 2. Extract text from PDF
  * 3. Analyze with AI
  * 4. Store results in database
  */
 
 import { prisma } from '@/lib/prisma';
-import { downloadFile } from '@/lib/storage';
+import {
+  downloadFileFromS3,
+  isS3Configured,
+} from '@/lib/storage';
 import { extractTextFromPDF, isPDFBuffer } from '@/lib/pdf-extraction';
 import { analyzeContract, isAIConfigured, getConfiguredProvider, type AIAnalysisOptions } from '@/lib/ai-analysis';
 import type { ContractAnalysis } from '@/types';
@@ -59,14 +62,16 @@ export async function analyzeContractDocument(
       };
     }
 
-    // Get contract with document info
+    // Get contract with document info including binary data
     const contract = await prisma.contract.findUnique({
       where: { id: contractId },
       select: {
         id: true,
         documentKey: true,
+        documentData: true,
         documentType: true,
         documentName: true,
+        storageType: true,
         aiAnalysis: true,
       },
     });
@@ -79,7 +84,7 @@ export async function analyzeContractDocument(
     }
 
     // Check if document exists
-    if (!contract.documentKey) {
+    if (!contract.documentKey && !contract.documentData) {
       return {
         success: false,
         error: 'No document attached to this contract',
@@ -105,9 +110,28 @@ export async function analyzeContractDocument(
       };
     }
 
-    // Download document from S3
-    const fileData = await downloadFile(contract.documentKey);
-    const pdfBuffer = Buffer.from(fileData.body);
+    let pdfBuffer: Buffer;
+
+    // Download document from database or S3 based on storage type
+    if (contract.storageType === 'database' && contract.documentData) {
+      // Document is stored in database
+      pdfBuffer = Buffer.from(contract.documentData);
+    } else if (contract.documentKey) {
+      // Document is stored in S3 (legacy)
+      if (!isS3Configured()) {
+        return {
+          success: false,
+          error: 'Document is stored in S3 but S3 is not configured. Please run migration.',
+        };
+      }
+      const fileData = await downloadFileFromS3(contract.documentKey);
+      pdfBuffer = Buffer.from(fileData.body);
+    } else {
+      return {
+        success: false,
+        error: 'Document data not found',
+      };
+    }
 
     // Verify it's a valid PDF
     if (!isPDFBuffer(pdfBuffer)) {

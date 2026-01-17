@@ -2,14 +2,17 @@
  * Vendor Document Analyzer Service
  *
  * Orchestrates the full document analysis pipeline:
- * 1. Fetch document from S3
+ * 1. Fetch document from database (or S3 for legacy documents)
  * 2. Extract text from PDF/images
  * 3. Analyze with AI
  * 4. Store results in database
  */
 
 import { prisma } from '@/lib/prisma';
-import { downloadFile } from '@/lib/storage';
+import {
+  downloadFileFromS3,
+  isS3Configured,
+} from '@/lib/storage';
 import { extractTextFromPDF, isPDFBuffer } from '@/lib/pdf-extraction';
 import {
   getDecryptedApiKey,
@@ -209,9 +212,48 @@ export async function analyzeVendorDocument(
       };
     }
 
-    // Download document from S3
-    const fileData = await downloadFile(document.documentKey);
-    const pdfBuffer = Buffer.from(fileData.body);
+    // Get full document record to retrieve binary data
+    const fullDocument = await prisma.vendorDocument.findUnique({
+      where: { id: documentId },
+      select: {
+        documentData: true,
+        storageType: true,
+        documentKey: true,
+      },
+    });
+
+    if (!fullDocument) {
+      await updateExtractionStatus(documentId, 'failed', 'Document not found');
+      return {
+        success: false,
+        error: 'Document not found',
+      };
+    }
+
+    let pdfBuffer: Buffer;
+
+    // Download document from database or S3 based on storage type
+    if (fullDocument.storageType === 'database' && fullDocument.documentData) {
+      // Document is stored in database
+      pdfBuffer = Buffer.from(fullDocument.documentData);
+    } else if (fullDocument.documentKey) {
+      // Document is stored in S3 (legacy)
+      if (!isS3Configured()) {
+        await updateExtractionStatus(documentId, 'failed', 'Document is stored in S3 but S3 is not configured');
+        return {
+          success: false,
+          error: 'Document is stored in S3 but S3 is not configured. Please run migration.',
+        };
+      }
+      const fileData = await downloadFileFromS3(fullDocument.documentKey);
+      pdfBuffer = Buffer.from(fileData.body);
+    } else {
+      await updateExtractionStatus(documentId, 'failed', 'Document data not found');
+      return {
+        success: false,
+        error: 'Document data not found',
+      };
+    }
 
     // Verify it's a valid PDF
     if (!isPDFBuffer(pdfBuffer)) {

@@ -12,11 +12,12 @@ import {
   isErrorResponse,
 } from '@/lib/api-permissions';
 import {
-  uploadFile,
-  deleteFile,
   validateFile,
-  isS3Configured,
+  isStorageConfigured,
   getMaxFileSize,
+  generateDocumentKey,
+  deleteFileFromS3,
+  isS3Configured,
   ALLOWED_FILE_TYPES,
 } from '@/lib/storage';
 import type { ApiResponse, DocumentUploadResponse } from '@/types';
@@ -33,12 +34,12 @@ export async function POST(
       return authResult;
     }
 
-    // Check if S3 is configured
-    if (!isS3Configured()) {
+    // Check if storage is configured (always true for database storage)
+    if (!isStorageConfigured()) {
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
-          error: 'Document storage is not configured. Please set up S3 credentials.',
+          error: 'Document storage is not configured.',
         },
         { status: 503 }
       );
@@ -61,7 +62,7 @@ export async function POST(
     // Check if contract exists
     const contract = await prisma.contract.findUnique({
       where: { id },
-      select: { id: true, documentKey: true },
+      select: { id: true, documentKey: true, storageType: true },
     });
 
     if (!contract) {
@@ -105,12 +106,12 @@ export async function POST(
       );
     }
 
-    // Delete existing document if present
-    if (contract.documentKey) {
+    // Delete existing document from S3 if present and stored there (legacy)
+    if (contract.documentKey && contract.storageType === 's3' && isS3Configured()) {
       try {
-        await deleteFile(contract.documentKey);
+        await deleteFileFromS3(contract.documentKey);
       } catch (error) {
-        console.warn('Failed to delete existing document:', error);
+        console.warn('Failed to delete existing document from S3:', error);
         // Continue with upload even if delete fails
       }
     }
@@ -119,36 +120,30 @@ export async function POST(
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to S3
-    const uploadResult = await uploadFile(buffer, file.name, {
-      folder: `contracts/${id}`,
-      contentType: file.type,
-      metadata: {
-        contractId: id,
-        originalName: file.name,
-        uploadedBy: authResult.user.id || 'unknown',
-      },
-    });
+    // Generate document key for identification
+    const documentKey = generateDocumentKey(file.name, `contracts/${id}`);
 
-    // Update contract with document info
+    // Update contract with document info stored in database
     const now = new Date();
     await prisma.contract.update({
       where: { id },
       data: {
-        documentKey: uploadResult.key,
+        documentKey,
+        documentData: buffer, // Store binary data directly in database
         documentName: file.name,
-        documentSize: uploadResult.size,
-        documentType: uploadResult.contentType,
+        documentSize: buffer.length,
+        documentType: file.type,
         documentUploadedAt: now,
+        storageType: 'database',
         documentUrl: null, // Clear external URL when uploading new document
       },
     });
 
     const response: DocumentUploadResponse = {
-      documentKey: uploadResult.key,
+      documentKey,
       documentName: file.name,
-      documentSize: uploadResult.size,
-      documentType: uploadResult.contentType,
+      documentSize: buffer.length,
+      documentType: file.type,
       documentUploadedAt: now,
       downloadUrl: `/api/contracts/${id}/download`,
     };
@@ -198,7 +193,7 @@ export async function DELETE(
     // Get contract with document info
     const contract = await prisma.contract.findUnique({
       where: { id },
-      select: { id: true, documentKey: true },
+      select: { id: true, documentKey: true, storageType: true },
     });
 
     if (!contract) {
@@ -221,23 +216,27 @@ export async function DELETE(
       );
     }
 
-    // Delete from S3
-    try {
-      await deleteFile(contract.documentKey);
-    } catch (error) {
-      console.warn('Failed to delete document from S3:', error);
-      // Continue to clear database even if S3 delete fails
+    // Delete from S3 if stored there (legacy)
+    if (contract.storageType === 's3' && isS3Configured()) {
+      try {
+        await deleteFileFromS3(contract.documentKey);
+      } catch (error) {
+        console.warn('Failed to delete document from S3:', error);
+        // Continue to clear database even if S3 delete fails
+      }
     }
 
-    // Clear document info in database
+    // Clear document info in database (this also deletes binary data for database storage)
     await prisma.contract.update({
       where: { id },
       data: {
         documentKey: null,
+        documentData: null,
         documentName: null,
         documentSize: null,
         documentType: null,
         documentUploadedAt: null,
+        storageType: null,
       },
     });
 
@@ -282,7 +281,7 @@ export async function GET(
         maxFileSize: getMaxFileSize(),
         maxFileSizeMB: getMaxFileSize() / (1024 * 1024),
         allowedTypes: ALLOWED_FILE_TYPES,
-        isConfigured: isS3Configured(),
+        isConfigured: isStorageConfigured(), // Always true for database storage
       },
     });
   } catch (error) {

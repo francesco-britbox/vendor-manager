@@ -13,10 +13,11 @@ import {
   isErrorResponse,
 } from '@/lib/api-permissions';
 import {
-  uploadFile,
-  validateFile,
-  isS3Configured,
+  isStorageConfigured,
   getMaxFileSize,
+  validateFile,
+  generateDocumentKey,
+  EXTENDED_ALLOWED_FILE_TYPES,
 } from '@/lib/storage';
 import {
   getVendorDocuments,
@@ -26,17 +27,6 @@ import {
 import { validateVendorId } from '@/lib/vendors';
 import type { ApiResponse, VendorDocument, DocumentType } from '@/types';
 import { DOCUMENT_TYPE_LABELS } from '@/types';
-
-// Extended file types for vendor documents
-const EXTENDED_ALLOWED_FILE_TYPES = [
-  'application/pdf',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-] as const;
 
 /**
  * GET - Get all documents for a vendor
@@ -135,12 +125,12 @@ export async function POST(
       return authResult;
     }
 
-    // Check if S3 is configured
-    if (!isS3Configured()) {
+    // Check if storage is configured (always true for database storage)
+    if (!isStorageConfigured()) {
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
-          error: 'Document storage is not configured. Please set up S3 credentials.',
+          error: 'Document storage is not configured.',
         },
         { status: 503 }
       );
@@ -196,24 +186,16 @@ export async function POST(
       );
     }
 
-    // Validate file - use extended types
-    const maxSize = getMaxFileSize();
-    if (file.size > maxSize) {
-      const maxSizeMB = maxSize / (1024 * 1024);
+    // Validate file - use extended types for vendor documents
+    const validation = validateFile(
+      { size: file.size, type: file.type, name: file.name },
+      { allowImages: true }
+    );
+    if (!validation.valid) {
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,
-          error: `File size exceeds the maximum allowed size of ${maxSizeMB}MB`,
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!EXTENDED_ALLOWED_FILE_TYPES.includes(file.type as typeof EXTENDED_ALLOWED_FILE_TYPES[number])) {
-      return NextResponse.json<ApiResponse<null>>(
-        {
-          success: false,
-          error: `File type "${file.type}" is not allowed. Allowed types: PDF, Word documents, Images (JPG, PNG, GIF, WebP)`,
+          error: validation.error,
         },
         { status: 400 }
       );
@@ -223,32 +205,25 @@ export async function POST(
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Upload to S3
-    const uploadResult = await uploadFile(buffer, file.name, {
-      folder: `vendors/${id}/documents`,
-      contentType: file.type,
-      metadata: {
-        vendorId: id,
-        vendorName: vendor.name,
-        documentType,
-        originalName: file.name,
-        uploadedBy: authResult.user.id || 'unknown',
-      },
-    });
+    // Generate document key for identification
+    const documentKey = generateDocumentKey(file.name, `vendors/${id}/documents`);
 
-    // Create document record
+    // Create document record with binary data stored in database
     const document = await createVendorDocument({
       vendorId: id,
       documentType,
       title: title || undefined,
       description: description || undefined,
-      documentKey: uploadResult.key,
+      documentKey,
       documentName: file.name,
-      documentSize: uploadResult.size,
-      documentMimeType: uploadResult.contentType,
+      documentSize: buffer.length,
+      documentMimeType: file.type,
       enableAiExtraction,
       documentDate: documentDate ? new Date(documentDate) : undefined,
       expiryDate: expiryDate ? new Date(expiryDate) : undefined,
+      // Store binary data directly in the database
+      documentData: buffer,
+      storageType: 'database',
     });
 
     return NextResponse.json<ApiResponse<VendorDocument>>(

@@ -1,8 +1,15 @@
 /**
  * S3 Storage Client
  *
- * Provides S3-compatible storage operations for file uploads/downloads.
- * Supports AWS S3 and S3-compatible services like MinIO, DigitalOcean Spaces, etc.
+ * @deprecated This module is deprecated. Document storage has been migrated to database storage.
+ * Use the functions from '@/lib/storage/db-storage' instead.
+ *
+ * This module is kept for:
+ * - Backward compatibility with legacy documents stored in S3
+ * - Migration scripts that need to read from S3
+ * - Fallback support during the transition period
+ *
+ * New uploads should use database storage via the main storage module exports.
  */
 
 import {
@@ -144,12 +151,18 @@ export function generateFileKey(
 
 /**
  * Upload a file to S3
+ *
+ * @deprecated Use database storage instead. This function is kept for backward compatibility.
+ * New uploads should use the uploadVendorDocument or uploadContractDocument functions.
  */
 export async function uploadFile(
   fileBuffer: Buffer,
   fileName: string,
   options: UploadOptions = {}
 ): Promise<UploadResult> {
+  console.warn(
+    '[DEPRECATED] uploadFile to S3 is deprecated. Use database storage instead.'
+  );
   const config = getS3Config();
   const client = getS3Client();
 
@@ -181,6 +194,9 @@ export async function uploadFile(
 
 /**
  * Download a file from S3
+ *
+ * @deprecated Use database storage instead. This function is kept for backward compatibility
+ * and migration purposes. For new code, use downloadVendorDocument or downloadContractDocument.
  */
 export async function downloadFile(key: string): Promise<{
   body: Uint8Array;
@@ -228,6 +244,9 @@ export async function downloadFile(key: string): Promise<{
 
 /**
  * Delete a file from S3
+ *
+ * @deprecated Use database storage instead. This function is kept for backward compatibility
+ * to delete legacy documents stored in S3.
  */
 export async function deleteFile(key: string): Promise<void> {
   const config = getS3Config();
@@ -302,6 +321,9 @@ export async function getFileMetadata(key: string): Promise<{
 
 /**
  * Generate a presigned URL for downloading a file
+ *
+ * @deprecated Use database storage instead. Presigned URLs are only available for S3 storage.
+ * For database storage, documents are served directly through the API endpoints.
  */
 export async function getPresignedDownloadUrl(
   key: string,
@@ -320,6 +342,9 @@ export async function getPresignedDownloadUrl(
 
 /**
  * Generate a presigned URL for uploading a file
+ *
+ * @deprecated Use database storage instead. Presigned URLs are only available for S3 storage.
+ * For database storage, documents are uploaded directly through the API endpoints.
  */
 export async function getPresignedUploadUrl(
   key: string,

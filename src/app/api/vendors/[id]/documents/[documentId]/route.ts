@@ -13,7 +13,10 @@ import {
   requireWritePermission,
   isErrorResponse,
 } from '@/lib/api-permissions';
-import { deleteFile } from '@/lib/storage';
+import {
+  deleteFileFromS3,
+  isS3Configured,
+} from '@/lib/storage';
 import {
   getDocumentById,
   updateVendorDocument,
@@ -263,15 +266,24 @@ export async function DELETE(
       );
     }
 
-    // Delete file from S3
-    try {
-      await deleteFile(existing.documentKey);
-    } catch (error) {
-      console.warn('Failed to delete file from S3:', error);
-      // Continue with database deletion even if S3 delete fails
-    }
+    // Get full document to check storage type
+    const fullDocument = await prisma.vendorDocument.findUnique({
+      where: { id: documentId },
+      select: { storageType: true, documentKey: true },
+    });
 
-    // Delete document record
+    // If document was stored in S3 (legacy), delete from S3
+    if (fullDocument?.storageType === 's3' && fullDocument.documentKey && isS3Configured()) {
+      try {
+        await deleteFileFromS3(fullDocument.documentKey);
+      } catch (error) {
+        console.warn('Failed to delete file from S3:', error);
+        // Continue with database deletion even if S3 delete fails
+      }
+    }
+    // For database storage, the binary data will be deleted with the record
+
+    // Delete document record (this also deletes the binary data for database storage)
     const deleted = await deleteVendorDocument(documentId);
 
     if (!deleted) {

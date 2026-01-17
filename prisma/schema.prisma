@@ -126,10 +126,12 @@ model VendorDocument {
   title            String?                        // User-friendly document title
   description      String?      @db.Text          // Description of the document
   // File storage fields
-  documentKey      String                         // S3 object key
+  documentKey      String?                        // S3 object key (deprecated - for backward compatibility)
+  documentData     Bytes?                         // Binary document data stored in database
   documentName     String                         // Original file name
   documentSize     Int                            // File size in bytes
   documentMimeType String                         // MIME type (e.g., application/pdf)
+  storageType      String       @default("database") // 'database' or 's3' (for migration tracking)
   // AI Extraction fields
   enableAiExtraction Boolean   @default(true)     // Whether AI extraction was enabled
   extractionStatus   String?                      // 'pending', 'processing', 'completed', 'failed'
@@ -149,6 +151,7 @@ model VendorDocument {
   @@index([documentType])
   @@index([expiryDate])
   @@index([uploadedAt])
+  @@index([storageType])
   @@map("vendor_documents")
 }
 
@@ -330,12 +333,14 @@ model Contract {
   currency    String         @default("GBP") @db.VarChar(3)
   status      ContractStatus @default(draft)
   documentUrl String?
-  // Document storage fields for S3-compatible storage
-  documentKey       String?            // S3 object key
+  // Document storage fields for S3-compatible storage (deprecated - for backward compatibility)
+  documentKey       String?            // S3 object key (deprecated)
+  documentData      Bytes?             // Binary document data stored in database
   documentName      String?            // Original file name
   documentSize      Int?               // File size in bytes
   documentType      String?            // MIME type (e.g., application/pdf)
   documentUploadedAt DateTime?         // When the document was uploaded
+  storageType       String?            // 'database' or 's3' (for migration tracking)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 

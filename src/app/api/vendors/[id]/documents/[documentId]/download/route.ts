@@ -9,9 +9,14 @@ import {
   requireViewPermission,
   isErrorResponse,
 } from '@/lib/api-permissions';
-import { downloadFile } from '@/lib/storage';
+import {
+  downloadVendorDocument,
+  downloadFileFromS3,
+  isS3Configured,
+} from '@/lib/storage';
 import { getDocumentById, validateDocumentId } from '@/lib/vendor-documents';
 import { validateVendorId } from '@/lib/vendors';
+import { prisma } from '@/lib/prisma';
 import type { ApiResponse } from '@/types';
 
 /**
@@ -77,8 +82,60 @@ export async function GET(
       );
     }
 
-    // Download file from S3
-    const fileData = await downloadFile(document.documentKey);
+    // Get the full document record to check storage type
+    const fullDocument = await prisma.vendorDocument.findUnique({
+      where: { id: documentId },
+      select: {
+        documentData: true,
+        documentMimeType: true,
+        documentSize: true,
+        documentName: true,
+        storageType: true,
+        documentKey: true,
+      },
+    });
+
+    if (!fullDocument) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          error: 'Document not found',
+        },
+        { status: 404 }
+      );
+    }
+
+    let fileData: { body: Uint8Array; contentType: string; size: number };
+
+    // Check storage type and download accordingly
+    if (fullDocument.storageType === 'database' && fullDocument.documentData) {
+      // Download from database
+      fileData = {
+        body: new Uint8Array(fullDocument.documentData),
+        contentType: fullDocument.documentMimeType,
+        size: fullDocument.documentSize,
+      };
+    } else if (fullDocument.storageType === 's3' && fullDocument.documentKey) {
+      // Fallback to S3 for documents that haven't been migrated yet
+      if (!isS3Configured()) {
+        return NextResponse.json<ApiResponse<null>>(
+          {
+            success: false,
+            error: 'Document is stored in S3 but S3 is not configured. Please run migration.',
+          },
+          { status: 503 }
+        );
+      }
+      fileData = await downloadFileFromS3(fullDocument.documentKey);
+    } else {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          error: 'Document data not found',
+        },
+        { status: 404 }
+      );
+    }
 
     // Create response with proper headers - use type assertion for Uint8Array
     return new Response(fileData.body as unknown as BodyInit, {

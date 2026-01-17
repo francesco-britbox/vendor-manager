@@ -52,6 +52,9 @@ export const createVendorDocumentSchema = z.object({
     .string()
     .transform((val) => (val ? new Date(val) : undefined))
     .optional(),
+  // New fields for database storage
+  documentData: z.instanceof(Buffer).optional(),
+  storageType: z.enum(['database', 's3']).optional().default('database'),
 });
 
 /**
@@ -189,7 +192,7 @@ function transformDocument(dbDocument: {
   documentType: string;
   title: string | null;
   description: string | null;
-  documentKey: string;
+  documentKey: string | null;
   documentName: string;
   documentSize: number;
   documentMimeType: string;
@@ -201,6 +204,7 @@ function transformDocument(dbDocument: {
   uploadedAt: Date;
   createdAt: Date;
   updatedAt: Date;
+  storageType?: string | null;
   aiAnalysis?: {
     id: string;
     documentId: string;
@@ -234,7 +238,7 @@ function transformDocument(dbDocument: {
     documentType: dbDocument.documentType as DocumentType,
     title: dbDocument.title || undefined,
     description: dbDocument.description || undefined,
-    documentKey: dbDocument.documentKey,
+    documentKey: dbDocument.documentKey || '',
     documentName: dbDocument.documentName,
     documentSize: dbDocument.documentSize,
     documentMimeType: dbDocument.documentMimeType,
@@ -427,6 +431,9 @@ export async function createVendorDocument(
       extractionStatus: input.enableAiExtraction ? 'pending' : null,
       documentDate: input.documentDate ?? null,
       expiryDate: input.expiryDate ?? null,
+      // New fields for database storage
+      documentData: input.documentData ?? null,
+      storageType: input.storageType ?? 'database',
     },
     include: {
       aiAnalysis: true,
