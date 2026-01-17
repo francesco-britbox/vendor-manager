@@ -202,6 +202,8 @@ function transformVendor(dbVendor: {
   location: string | null;
   serviceDescription: string | null;
   status: 'active' | 'inactive';
+  contractStartDate: Date | null;
+  contractEndDate: Date | null;
   createdAt: Date;
   updatedAt: Date;
   tags?: Array<{
@@ -219,6 +221,8 @@ function transformVendor(dbVendor: {
     location: dbVendor.location ?? undefined,
     serviceDescription: dbVendor.serviceDescription ?? undefined,
     status: dbVendor.status as VendorStatus,
+    contractStartDate: dbVendor.contractStartDate ?? undefined,
+    contractEndDate: dbVendor.contractEndDate ?? undefined,
     createdAt: dbVendor.createdAt,
     updatedAt: dbVendor.updatedAt,
     tags: dbVendor.tags?.map((vt) => ({

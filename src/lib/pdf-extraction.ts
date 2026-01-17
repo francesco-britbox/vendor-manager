@@ -2,11 +2,10 @@
  * PDF Text Extraction Library
  *
  * Extracts text content from PDF files for AI analysis.
- * Uses pdf-parse library for robust PDF text extraction.
+ * Uses pdf-parse v2 library for robust PDF text extraction.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdf = require('pdf-parse');
+import { PDFParse } from 'pdf-parse';
 
 /**
  * Result of PDF text extraction
@@ -51,18 +50,25 @@ export async function extractTextFromPDF(
   const { maxPages = 0, maxTextLength = 100000 } = options;
 
   try {
-    // Parse PDF with options
-    const parseOptions: { max?: number } = {};
+    // Create parser with buffer data
+    const parser = new PDFParse({ data: pdfBuffer });
 
-    // Limit pages if specified
-    if (maxPages > 0) {
-      parseOptions.max = maxPages;
+    // Get text content
+    const textResult = await parser.getText();
+
+    // Get document info
+    const infoResult = await parser.getInfo();
+
+    // Extract text from all pages or limited pages
+    let text = '';
+    const pages = textResult.pages || [];
+    const pagesToProcess = maxPages > 0 ? pages.slice(0, maxPages) : pages;
+
+    for (const page of pagesToProcess) {
+      if (page.text) {
+        text += page.text + '\n\n';
+      }
     }
-
-    const data = await pdf(pdfBuffer, parseOptions);
-
-    // Extract text
-    let text = data.text || '';
 
     // Truncate if needed
     if (maxTextLength > 0 && text.length > maxTextLength) {
@@ -72,21 +78,22 @@ export async function extractTextFromPDF(
     // Clean up text
     text = cleanExtractedText(text);
 
-    // Extract metadata
-    const metadata = data.info ? {
-      title: data.info.Title,
-      author: data.info.Author,
-      subject: data.info.Subject,
-      creator: data.info.Creator,
-      producer: data.info.Producer,
-      creationDate: data.info.CreationDate ? new Date(data.info.CreationDate) : undefined,
-      modificationDate: data.info.ModDate ? new Date(data.info.ModDate) : undefined,
+    // Extract metadata from info
+    const info = infoResult.info;
+    const metadata = info ? {
+      title: info.Title || undefined,
+      author: info.Author || undefined,
+      subject: info.Subject || undefined,
+      creator: info.Creator || undefined,
+      producer: info.Producer || undefined,
+      creationDate: info.CreationDate ? new Date(info.CreationDate) : undefined,
+      modificationDate: info.ModDate ? new Date(info.ModDate) : undefined,
     } : undefined;
 
     return {
       success: true,
       text,
-      pageCount: data.numpages,
+      pageCount: infoResult.numPages || pages.length,
       metadata,
     };
   } catch (error) {
@@ -144,18 +151,19 @@ export async function getPDFInfo(pdfBuffer: Buffer): Promise<{
   error?: string;
 }> {
   try {
-    // Quick parse with first page only
-    const data = await pdf(pdfBuffer, { max: 1 });
+    const parser = new PDFParse({ data: pdfBuffer });
+    const infoResult = await parser.getInfo();
+    const info = infoResult.info;
 
     return {
       valid: true,
-      pageCount: data.numpages,
-      metadata: data.info ? {
-        title: data.info.Title,
-        author: data.info.Author,
-        subject: data.info.Subject,
-        creator: data.info.Creator,
-        producer: data.info.Producer,
+      pageCount: infoResult.numPages,
+      metadata: info ? {
+        title: info.Title || undefined,
+        author: info.Author || undefined,
+        subject: info.Subject || undefined,
+        creator: info.Creator || undefined,
+        producer: info.Producer || undefined,
       } : undefined,
     };
   } catch (error) {
@@ -175,20 +183,27 @@ export async function extractPagesFromPDF(
   endPage: number = 1
 ): Promise<PDFExtractionResult> {
   try {
-    // pdf-parse doesn't support page ranges directly,
-    // so we extract all and note limitations
-    const parseOptions: { max?: number } = {
-      max: endPage,
-    };
+    const parser = new PDFParse({ data: pdfBuffer });
+    const textResult = await parser.getText();
+    const infoResult = await parser.getInfo();
 
-    const data = await pdf(pdfBuffer, parseOptions);
+    // Get pages in range (1-indexed to 0-indexed)
+    const pages = textResult.pages || [];
+    const selectedPages = pages.slice(startPage - 1, endPage);
 
-    const text = cleanExtractedText(data.text || '');
+    let text = '';
+    for (const page of selectedPages) {
+      if (page.text) {
+        text += page.text + '\n\n';
+      }
+    }
+
+    text = cleanExtractedText(text);
 
     return {
       success: true,
       text,
-      pageCount: Math.min(data.numpages, endPage),
+      pageCount: Math.min(infoResult.numPages || pages.length, endPage - startPage + 1),
     };
   } catch (error) {
     return {

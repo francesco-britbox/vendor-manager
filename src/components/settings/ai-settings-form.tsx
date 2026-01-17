@@ -164,12 +164,13 @@ export function AISettingsForm({ onSave }: AISettingsFormProps) {
   // Track if any test is in progress to prevent concurrent tests
   const isAnyTestInProgress = anthropic.isTesting || openai.isTesting;
 
+  // Only models that support structured outputs (json_schema) for reliable AI analysis
   const [availableModels, setAvailableModels] = React.useState<{
     anthropic: string[];
     openai: string[];
   }>({
-    anthropic: ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'],
-    openai: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'],
+    anthropic: ['claude-sonnet-4-20250514'],
+    openai: ['gpt-4o', 'gpt-4o-mini'],
   });
 
   const [defaultProvider, setDefaultProvider] = React.useState<AIProvider | null>(null);

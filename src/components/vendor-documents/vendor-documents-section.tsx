@@ -59,6 +59,8 @@ export function VendorDocumentsSection({
   const [showUpload, setShowUpload] = React.useState(false);
   const [selectedDocument, setSelectedDocument] = React.useState<VendorDocument | null>(null);
   const [showAnalysis, setShowAnalysis] = React.useState(false);
+  const [analyzingDocumentId, setAnalyzingDocumentId] = React.useState<string | null>(null);
+  const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Fetch documents on mount
   React.useEffect(() => {
@@ -97,9 +99,55 @@ export function VendorDocumentsSection({
     fetchDocuments();
   };
 
-  const handleAnalyze = () => {
-    // Refresh documents to get updated analysis status
-    fetchDocuments();
+  // Cleanup polling on unmount
+  React.useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
+
+  const handleAnalyze = async (documentId: string) => {
+    // Set optimistic UI state
+    setAnalyzingDocumentId(documentId);
+
+    // Start polling to refresh status every 3 seconds
+    pollingRef.current = setInterval(() => {
+      fetchDocuments();
+    }, 3000);
+
+    try {
+      const response = await fetch(
+        `/api/vendors/${vendorId}/documents/${documentId}/analyze`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ force: true }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to analyze document');
+      }
+
+      // Refresh documents to get final status
+      await fetchDocuments();
+    } catch (error) {
+      console.error('Error analyzing document:', error);
+      alert(error instanceof Error ? error.message : 'Failed to analyze document');
+      // Refresh to show failed status
+      await fetchDocuments();
+    } finally {
+      // Stop polling
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      setAnalyzingDocumentId(null);
+    }
   };
 
   const handleViewAnalysis = (document: VendorDocument) => {
@@ -171,6 +219,7 @@ export function VendorDocumentsSection({
             onDocumentDeleted={handleDocumentDeleted}
             onAnalyze={handleAnalyze}
             onViewAnalysis={handleViewAnalysis}
+            analyzingDocumentId={analyzingDocumentId}
           />
         )}
 

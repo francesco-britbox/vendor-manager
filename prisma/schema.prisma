@@ -101,6 +101,9 @@ model Vendor {
   location           String?
   serviceDescription String?      @db.Text
   status             VendorStatus @default(active)
+  // Contract dates (auto-populated from document analysis)
+  contractStartDate  DateTime?    @db.Date
+  contractEndDate    DateTime?    @db.Date
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt
 

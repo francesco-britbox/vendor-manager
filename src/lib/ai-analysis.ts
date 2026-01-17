@@ -271,10 +271,13 @@ export async function analyzeContract(
 
 /**
  * Get available AI models for each provider
+ * Only includes models that support structured outputs (json_schema)
  */
 export function getAvailableModels(provider: AIProvider): string[] {
   if (provider === 'openai') {
-    return ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+    // Only GPT-4o models support structured outputs with json_schema
+    return ['gpt-4o', 'gpt-4o-mini'];
   }
-  return ['claude-sonnet-4-20250514', 'claude-3-5-sonnet-20241022', 'claude-3-opus-20240229', 'claude-3-haiku-20240307'];
+  // Only Claude Sonnet 4+ supports structured outputs
+  return ['claude-sonnet-4-20250514'];
 }

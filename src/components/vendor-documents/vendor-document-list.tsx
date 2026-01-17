@@ -18,6 +18,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import {
   FileText,
   Download,
   Trash2,
@@ -39,6 +45,8 @@ interface VendorDocumentListProps {
   onAnalyze?: (documentId: string) => void;
   onViewAnalysis?: (document: VendorDocument) => void;
   isLoading?: boolean;
+  /** ID of document currently being analyzed (for optimistic UI) */
+  analyzingDocumentId?: string | null;
 }
 
 /**
@@ -88,33 +96,37 @@ function getDocumentTypeBadge(type: DocumentType) {
 }
 
 /**
- * Get extraction status badge
+ * Get extraction status badge info
  */
-function getExtractionStatusBadge(status: string | undefined) {
+function getExtractionStatusBadge(status: string | undefined, error?: string | null) {
   switch (status) {
     case 'completed':
       return {
         icon: CheckCircle2,
         className: 'text-green-600',
         label: 'Analyzed',
+        error: null,
       };
     case 'processing':
       return {
         icon: Loader2,
         className: 'text-blue-600 animate-spin',
-        label: 'Processing',
+        label: 'Processing...',
+        error: null,
       };
     case 'pending':
       return {
         icon: Clock,
         className: 'text-yellow-600',
         label: 'Pending',
+        error: null,
       };
     case 'failed':
       return {
         icon: AlertCircle,
         className: 'text-red-600',
         label: 'Failed',
+        error: error || 'Analysis failed',
       };
     default:
       return null;
@@ -131,9 +143,9 @@ export function VendorDocumentList({
   onAnalyze,
   onViewAnalysis,
   isLoading = false,
+  analyzingDocumentId = null,
 }: VendorDocumentListProps) {
   const [deletingId, setDeletingId] = React.useState<string | null>(null);
-  const [analyzingId, setAnalyzingId] = React.useState<string | null>(null);
 
   /**
    * Handle document download
@@ -176,28 +188,8 @@ export function VendorDocumentList({
   /**
    * Handle AI analysis trigger
    */
-  const handleAnalyze = async (documentId: string) => {
-    setAnalyzingId(documentId);
-
-    try {
-      const response = await fetch(
-        `/api/vendors/${vendorId}/documents/${documentId}/analyze`,
-        { method: 'POST' }
-      );
-
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to analyze document');
-      }
-
-      onAnalyze?.(documentId);
-    } catch (error) {
-      console.error('Error analyzing document:', error);
-      alert(error instanceof Error ? error.message : 'Failed to analyze document');
-    } finally {
-      setAnalyzingId(null);
-    }
+  const handleAnalyze = (documentId: string) => {
+    onAnalyze?.(documentId);
   };
 
   if (isLoading) {
@@ -236,9 +228,11 @@ export function VendorDocumentList({
         </TableHeader>
         <TableBody>
           {documents.map((doc) => {
-            const extractionBadge = getExtractionStatusBadge(doc.extractionStatus);
             const isDeleting = deletingId === doc.id;
-            const isAnalyzing = analyzingId === doc.id;
+            const isAnalyzing = analyzingDocumentId === doc.id;
+            // Show "processing" status when actively analyzing, otherwise use actual status
+            const displayStatus = isAnalyzing ? 'processing' : doc.extractionStatus;
+            const extractionBadge = getExtractionStatusBadge(displayStatus, doc.extractionError);
 
             return (
               <TableRow key={doc.id}>
@@ -287,12 +281,30 @@ export function VendorDocumentList({
                 </TableCell>
                 <TableCell>
                   {extractionBadge ? (
-                    <div className="flex items-center gap-1">
-                      <extractionBadge.icon className={`h-4 w-4 ${extractionBadge.className}`} />
-                      <span className="text-xs text-muted-foreground">
-                        {extractionBadge.label}
-                      </span>
-                    </div>
+                    extractionBadge.error ? (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="flex items-center gap-1 cursor-help">
+                              <extractionBadge.icon className={`h-4 w-4 ${extractionBadge.className}`} />
+                              <span className="text-xs text-muted-foreground">
+                                {extractionBadge.label}
+                              </span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs">
+                            <p className="text-xs">{extractionBadge.error}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <extractionBadge.icon className={`h-4 w-4 ${extractionBadge.className}`} />
+                        <span className="text-xs text-muted-foreground">
+                          {extractionBadge.label}
+                        </span>
+                      </div>
+                    )
                   ) : doc.enableAiExtraction ? (
                     <span className="text-xs text-muted-foreground">-</span>
                   ) : (

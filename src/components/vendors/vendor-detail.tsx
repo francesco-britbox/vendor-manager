@@ -37,12 +37,21 @@ interface VendorDetailProps {
 }
 
 /**
- * Format a date for display
+ * Format a date with time for display
  */
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat('en-GB', {
     dateStyle: 'long',
     timeStyle: 'short',
+  }).format(new Date(date));
+}
+
+/**
+ * Format a date only (no time) for display
+ */
+function formatDateOnly(date: Date): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    dateStyle: 'long',
   }).format(new Date(date));
 }
 
@@ -256,29 +265,33 @@ export function VendorDetail({ vendor: initialVendor }: VendorDetailProps) {
           </CardContent>
         </Card>
 
-        {/* Dates Card */}
+        {/* Contract Period Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5" />
-              Timeline
+              Contract Period
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <label className="text-sm font-medium text-muted-foreground">
-                Created
+                Start Date
               </label>
-              <p className="mt-1" data-testid="vendor-detail-created">
-                {formatDate(vendor.createdAt)}
+              <p className="mt-1" data-testid="vendor-detail-contract-start">
+                {vendor.contractStartDate
+                  ? formatDateOnly(vendor.contractStartDate)
+                  : <span className="text-muted-foreground italic">Not set</span>}
               </p>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">
-                Last Updated
+                End Date
               </label>
-              <p className="mt-1" data-testid="vendor-detail-updated">
-                {formatDate(vendor.updatedAt)}
+              <p className="mt-1" data-testid="vendor-detail-contract-end">
+                {vendor.contractEndDate
+                  ? formatDateOnly(vendor.contractEndDate)
+                  : <span className="text-muted-foreground italic">Not set</span>}
               </p>
             </div>
           </CardContent>
