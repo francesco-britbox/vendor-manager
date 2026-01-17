@@ -44,6 +44,7 @@ interface VendorDocumentListProps {
   onDocumentDeleted?: (documentId: string) => void;
   onAnalyze?: (documentId: string) => void;
   onViewAnalysis?: (document: VendorDocument) => void;
+  onViewPdf?: (document: VendorDocument) => void;
   isLoading?: boolean;
   /** ID of document currently being analyzed (for optimistic UI) */
   analyzingDocumentId?: string | null;
@@ -142,6 +143,7 @@ export function VendorDocumentList({
   onDocumentDeleted,
   onAnalyze,
   onViewAnalysis,
+  onViewPdf,
   isLoading = false,
   analyzingDocumentId = null,
 }: VendorDocumentListProps) {
@@ -320,13 +322,19 @@ export function VendorDocumentList({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
+                      {doc.documentMimeType === 'application/pdf' && (
+                        <DropdownMenuItem onClick={() => onViewPdf?.(doc)}>
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => handleDownload(doc.id)}>
                         <Download className="h-4 w-4 mr-2" />
                         Download
                       </DropdownMenuItem>
                       {doc.aiAnalysis && (
                         <DropdownMenuItem onClick={() => onViewAnalysis?.(doc)}>
-                          <Eye className="h-4 w-4 mr-2" />
+                          <Sparkles className="h-4 w-4 mr-2" />
                           View Analysis
                         </DropdownMenuItem>
                       )}

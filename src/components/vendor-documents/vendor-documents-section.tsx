@@ -18,6 +18,7 @@ import {
 import { VendorDocumentUpload } from './vendor-document-upload';
 import { VendorDocumentList } from './vendor-document-list';
 import { VendorDocumentAnalysisDisplay } from './vendor-document-analysis-display';
+import { VendorDocumentPdfViewer } from './vendor-document-pdf-viewer';
 import type { VendorDocument } from '@/types';
 
 interface VendorDocumentsSectionProps {
@@ -60,6 +61,8 @@ export function VendorDocumentsSection({
   const [selectedDocument, setSelectedDocument] = React.useState<VendorDocument | null>(null);
   const [showAnalysis, setShowAnalysis] = React.useState(false);
   const [analyzingDocumentId, setAnalyzingDocumentId] = React.useState<string | null>(null);
+  const [pdfViewerDocument, setPdfViewerDocument] = React.useState<VendorDocument | null>(null);
+  const [showPdfViewer, setShowPdfViewer] = React.useState(false);
   const pollingRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Fetch documents on mount
@@ -155,6 +158,11 @@ export function VendorDocumentsSection({
     setShowAnalysis(true);
   };
 
+  const handleViewPdf = (document: VendorDocument) => {
+    setPdfViewerDocument(document);
+    setShowPdfViewer(true);
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -219,6 +227,7 @@ export function VendorDocumentsSection({
             onDocumentDeleted={handleDocumentDeleted}
             onAnalyze={handleAnalyze}
             onViewAnalysis={handleViewAnalysis}
+            onViewPdf={handleViewPdf}
             analyzingDocumentId={analyzingDocumentId}
           />
         )}
@@ -230,6 +239,17 @@ export function VendorDocumentsSection({
             documentName={selectedDocument.title || selectedDocument.documentName}
             open={showAnalysis}
             onOpenChange={setShowAnalysis}
+          />
+        )}
+
+        {/* PDF Viewer Dialog */}
+        {pdfViewerDocument && (
+          <VendorDocumentPdfViewer
+            open={showPdfViewer}
+            onOpenChange={setShowPdfViewer}
+            vendorId={vendorId}
+            documentId={pdfViewerDocument.id}
+            documentName={pdfViewerDocument.title || pdfViewerDocument.documentName}
           />
         )}
       </CardContent>
