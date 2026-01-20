@@ -30,10 +30,12 @@ import {
   ChevronRight,
   FileSpreadsheet,
   Loader2,
+  FilePlus2,
 } from 'lucide-react';
 import { VendorTimesheetEntry } from './vendor-timesheet-entry';
 import { CSVUpload } from './csv-upload';
 import { CalendarReview } from './calendar-review';
+import { CSVTimesheetGenerator } from './csv-timesheet-generator';
 import type { TimeOffCode } from '@/types';
 
 // Types
@@ -62,7 +64,7 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-type ViewMode = 'overview' | 'vendor-entry' | 'calendar-review' | 'csv-import';
+type ViewMode = 'overview' | 'vendor-entry' | 'calendar-review' | 'csv-import' | 'csv-generate';
 
 interface TimesheetManagementProps {
   defaultView?: ViewMode;
@@ -243,6 +245,7 @@ export function TimesheetManagement({
     { id: 'vendor-entry' as ViewMode, label: 'Vendor Entry', icon: Building2 },
     { id: 'calendar-review' as ViewMode, label: 'Calendar Review', icon: CalendarDays },
     { id: 'csv-import' as ViewMode, label: 'CSV Import', icon: Upload },
+    { id: 'csv-generate' as ViewMode, label: 'Generate CSV', icon: FilePlus2 },
   ];
 
   return (
@@ -463,7 +466,7 @@ export function TimesheetManagement({
               </Card>
 
               {/* Quick Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card
                   className="cursor-pointer hover:border-primary transition-colors"
                   onClick={() => setActiveView('vendor-entry')}
@@ -520,6 +523,25 @@ export function TimesheetManagement({
                     </div>
                   </CardContent>
                 </Card>
+
+                <Card
+                  className="cursor-pointer hover:border-primary transition-colors"
+                  onClick={() => setActiveView('csv-generate')}
+                >
+                  <CardContent className="pt-6">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-orange-100 rounded-lg">
+                        <FilePlus2 className="h-6 w-6 text-orange-600" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">Generate CSV Timesheets</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Create pre-filled CSV templates for vendors
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </>
           )}
@@ -539,6 +561,15 @@ export function TimesheetManagement({
       {/* CSV Import View */}
       {activeView === 'csv-import' && (
         <CSVUpload onImportComplete={handleRefresh} />
+      )}
+
+      {/* CSV Generate View */}
+      {activeView === 'csv-generate' && (
+        <CSVTimesheetGenerator
+          initialMonth={month}
+          initialYear={year}
+          onGenerateComplete={handleRefresh}
+        />
       )}
 
       {/* Export Dialog */}

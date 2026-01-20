@@ -5,3 +5,4 @@ export { VendorTimesheetEntry } from './vendor-timesheet-entry';
 export { CSVUpload } from './csv-upload';
 export { CalendarReview } from './calendar-review';
 export { TimesheetManagement } from './timesheet-management';
+export { CSVTimesheetGenerator } from './csv-timesheet-generator';
