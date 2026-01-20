@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Copy, Eye, Send, Loader2, AlertCircle } from 'lucide-react';
+import { Copy, Send, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -479,10 +479,6 @@ export function ReportForm({ initialVendors, userId }: ReportFormProps) {
               Copy from Last Week
             </Button>
             <div className="flex gap-2">
-              <Button variant="outline" disabled={isLoading}>
-                <Eye className="h-4 w-4 mr-2" />
-                Preview
-              </Button>
               <Button
                 onClick={() => setShowSubmitDialog(true)}
                 disabled={isLoading || reportStatus === 'submitted'}
