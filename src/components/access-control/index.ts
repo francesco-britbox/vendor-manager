@@ -7,3 +7,4 @@
 export { UsersManagement } from './users-management';
 export { GroupsManagement } from './groups-management';
 export { PermissionsManagement } from './permissions-management';
+export { VendorAssignments } from './vendor-assignments';

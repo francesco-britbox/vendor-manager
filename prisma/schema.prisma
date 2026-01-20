@@ -89,7 +89,8 @@ model User {
   updatedAt       DateTime        @updatedAt
 
   // Relationships
-  groups          UserGroup[]     // Groups this user belongs to
+  groups                UserGroup[]              // Groups this user belongs to
+  deliveryManagerVendors DeliveryManagerVendor[] // Vendors assigned to this user as delivery manager
 
   @@index([email])
   @@index([permissionLevel])
@@ -192,12 +193,18 @@ model Vendor {
   updatedAt          DateTime     @updatedAt
 
   // Relationships
-  rateCards   RateCard[]
-  teamMembers TeamMember[]
-  invoices    Invoice[]
-  contracts   Contract[]
-  tags        VendorTag[]
-  documents   VendorDocument[]
+  rateCards              RateCard[]
+  teamMembers            TeamMember[]
+  invoices               Invoice[]
+  contracts              Contract[]
+  tags                   VendorTag[]
+  documents              VendorDocument[]
+  // Delivery reporting relationships
+  deliveryManagerVendors DeliveryManagerVendor[]
+  weeklyReports          WeeklyReport[]
+  timeline               VendorTimeline[]
+  raidItems              VendorRaidItem[]
+  resources              VendorResource[]
 
   @@index([name])
   @@index([status])
@@ -639,4 +646,134 @@ model ContractTag {
   @@index([contractId])
   @@index([tagId])
   @@map("contract_tags")
+}
+
+// ============================================================================
+// DELIVERY WEEKLY REPORTING MODELS
+// ============================================================================
+
+/// Junction table for Delivery Manager to Vendor assignment (Many-to-Many)
+model DeliveryManagerVendor {
+  id        String   @id @default(cuid())
+  userId    String
+  vendorId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, vendorId])
+  @@index([userId])
+  @@index([vendorId])
+  @@map("delivery_manager_vendors")
+}
+
+/// Weekly Report model for vendor delivery status tracking
+model WeeklyReport {
+  id          String    @id @default(cuid())
+  vendorId    String
+  weekStart   DateTime  @db.Date
+  ragStatus   String?   @db.VarChar(10)  // green, amber, red
+  status      String    @default("draft") @db.VarChar(20)  // draft, submitted
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  vendor       Vendor                    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  achievements WeeklyReportAchievement[]
+  focusItems   WeeklyReportFocus[]
+
+  @@unique([vendorId, weekStart])
+  @@index([vendorId, weekStart])
+  @@map("weekly_reports")
+}
+
+/// Achievements recorded for a weekly report
+model WeeklyReportAchievement {
+  id          String   @id @default(cuid())
+  reportId    String
+  description String   @db.Text
+  status      String?  @db.VarChar(20)  // done, in_progress, null
+  isFromFocus Boolean  @default(false)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("weekly_report_achievements")
+}
+
+/// Focus items for next week in a weekly report
+model WeeklyReportFocus {
+  id            String   @id @default(cuid())
+  reportId      String
+  description   String   @db.Text
+  isCarriedOver Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  report WeeklyReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId])
+  @@map("weekly_report_focus")
+}
+
+/// Vendor timeline/milestones (persistent, vendor-level data)
+model VendorTimeline {
+  id        String   @id @default(cuid())
+  vendorId  String
+  date      String   @db.VarChar(50)  // Flexible format: "22/01", "Mar 2026", "TBC"
+  title     String
+  status    String   @db.VarChar(20)  // completed, in_progress, upcoming, tbc
+  platforms String[]
+  features  String[]
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@map("vendor_timelines")
+}
+
+/// RAID Log items (Risks, Issues, Dependencies) - persistent vendor-level data
+model VendorRaidItem {
+  id          String   @id @default(cuid())
+  vendorId    String
+  type        String   @db.VarChar(20)  // risk, issue, dependency
+  area        String
+  description String   @db.Text
+  impact      String   @db.VarChar(10)  // high, medium, low
+  owner       String?
+  ragStatus   String   @db.VarChar(10)  // green, amber, red
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@map("vendor_raid_items")
+}
+
+/// Vendor resources/links (persistent vendor-level data)
+model VendorResource {
+  id          String   @id @default(cuid())
+  vendorId    String
+  type        String   @db.VarChar(20)  // confluence, jira, github, docs
+  name        String
+  description String?  @db.Text
+  url         String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  @@index([vendorId])
+  @@map("vendor_resources")
 }

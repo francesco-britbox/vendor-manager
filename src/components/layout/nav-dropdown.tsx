@@ -22,6 +22,8 @@ interface NavDropdownChildItem {
   icon?: LucideIcon;
   /** RBAC resource key (used for filtering, not rendered) */
   resourceKey?: string;
+  /** If true, only matches exact path. Default: false (matches path prefix) */
+  exact?: boolean;
 }
 
 interface NavDropdownProps {
@@ -57,9 +59,17 @@ export function NavDropdown({
   const pathname = usePathname();
   const [isOpen, setIsOpen] = React.useState(false);
 
+  // Helper to check if a route is active based on exact match preference
+  const isRouteActive = (href: string, exact?: boolean): boolean => {
+    if (exact) {
+      return pathname === href;
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   // Check if any child item is currently active
-  const isAnyChildActive = items.some(
-    (item) => pathname === item.href || pathname.startsWith(`${item.href}/`)
+  const isAnyChildActive = items.some((item) =>
+    isRouteActive(item.href, item.exact)
   );
 
   return (
@@ -105,7 +115,7 @@ export function NavDropdown({
         className="min-w-[180px]"
       >
         {items.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = isRouteActive(item.href, item.exact);
           const ItemIcon = item.icon;
 
           return (

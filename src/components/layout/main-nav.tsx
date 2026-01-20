@@ -5,7 +5,7 @@ import { NavLink } from "./nav-link";
 import { NavDropdown } from "./nav-dropdown";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Users, Clock, FileText, Briefcase, Building2 } from "lucide-react";
+import { Users, Clock, FileText, Briefcase, Building2, ClipboardList } from "lucide-react";
 import { useRBACPermissions } from "@/hooks/use-rbac-permissions";
 
 /**
@@ -29,6 +29,14 @@ const vendorsManagementChildren = [
   { href: "/team-members", label: "Team Members", testId: "nav-team-members", icon: Users, resourceKey: "page:team-members" },
   { href: "/timesheet", label: "Timesheet", testId: "nav-timesheet", icon: Clock, resourceKey: "page:timesheet" },
   { href: "/invoices", label: "Invoices", testId: "nav-invoices", icon: FileText, resourceKey: "page:invoices" },
+];
+
+/**
+ * Child items for the Reporting dropdown
+ */
+const reportingChildren = [
+  { href: "/reporting/create", label: "Create Report", testId: "nav-reporting-create", icon: ClipboardList, resourceKey: "page:reporting-create" },
+  { href: "/reporting", label: "View Reports", testId: "nav-reporting-view", icon: FileText, resourceKey: "page:reporting", exact: true },
 ];
 
 /**
@@ -68,6 +76,11 @@ export function MainNav() {
     (child) => canAccessResource(child.resourceKey)
   );
 
+  // Filter reporting dropdown children based on permissions
+  const filteredReportingChildren = reportingChildren.filter(
+    (child) => canAccessResource(child.resourceKey)
+  );
+
   // Helper to render nav items with the Vendors Management dropdown in the correct position
   const renderNavItems = () => {
     const elements: React.ReactNode[] = [];
@@ -78,7 +91,7 @@ export function MainNav() {
         return;
       }
 
-      // Add the Vendors Management dropdown after Dashboard
+      // Add the Vendors Management and Reporting dropdowns after Dashboard
       if (item.href === "/dashboard") {
         elements.push(
           <NavLink
@@ -100,6 +113,19 @@ export function MainNav() {
               icon={Briefcase}
               items={filteredDropdownChildren}
               testId="nav-vendors-management"
+            />
+          );
+        }
+
+        // Add the Reporting dropdown only if user has access to any child
+        if (filteredReportingChildren.length > 0) {
+          elements.push(
+            <NavDropdown
+              key="reporting"
+              label="Delivery Reporting"
+              icon={ClipboardList}
+              items={filteredReportingChildren}
+              testId="nav-reporting"
             />
           );
         }

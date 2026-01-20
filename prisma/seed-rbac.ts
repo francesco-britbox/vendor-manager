@@ -143,6 +143,24 @@ const PROTECTABLE_PAGES: ResourceDefinition[] = [
     parentKey: 'page:settings',
     sortOrder: 14,
   },
+  // Reporting pages
+  {
+    resourceKey: 'page:reporting',
+    type: 'page',
+    name: 'Reporting',
+    description: 'Weekly vendor reporting section',
+    path: '/reporting',
+    sortOrder: 15,
+  },
+  {
+    resourceKey: 'page:reporting-create',
+    type: 'page',
+    name: 'Create Report',
+    description: 'Create and edit weekly vendor reports',
+    path: '/reporting/create',
+    parentKey: 'page:reporting',
+    sortOrder: 16,
+  },
 ];
 
 // Protectable components
@@ -243,6 +261,46 @@ async function main() {
       update: {},
     });
     console.log('  - Administrators group assigned to Access Control page');
+  }
+
+  // 3.1 Create Delivery Managers permission group
+  console.log('\n3.1. Creating Delivery Managers group...');
+
+  const deliveryManagerGroup = await prisma.permissionGroup.upsert({
+    where: { name: 'Delivery Managers' },
+    create: {
+      name: 'Delivery Managers',
+      description: 'Access to weekly reporting features for assigned vendors',
+      isSystem: false,
+    },
+    update: {},
+  });
+  console.log(`  - Created/verified Delivery Managers group (${deliveryManagerGroup.id})`);
+
+  // Assign Delivery Managers group to reporting pages
+  const reportingResources = await prisma.protectableResource.findMany({
+    where: {
+      resourceKey: {
+        in: ['page:reporting', 'page:reporting-create'],
+      },
+    },
+  });
+
+  for (const resource of reportingResources) {
+    await prisma.resourcePermission.upsert({
+      where: {
+        resourceId_groupId: {
+          resourceId: resource.id,
+          groupId: deliveryManagerGroup.id,
+        },
+      },
+      create: {
+        resourceId: resource.id,
+        groupId: deliveryManagerGroup.id,
+      },
+      update: {},
+    });
+    console.log(`  - Delivery Managers group assigned to ${resource.name}`);
   }
 
   // 4. Set the first admin user as super user

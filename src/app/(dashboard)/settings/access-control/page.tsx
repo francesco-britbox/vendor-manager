@@ -6,9 +6,10 @@ import {
   UsersManagement,
   GroupsManagement,
   PermissionsManagement,
+  VendorAssignments,
 } from '@/components/access-control';
 import { AdminGuard } from '@/components/permissions';
-import { Shield, Users, Lock } from 'lucide-react';
+import { Shield, Users, Lock, Link2 } from 'lucide-react';
 
 /**
  * Access Control Settings Page
@@ -44,7 +45,7 @@ export default function AccessControlPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsList className="grid w-full grid-cols-4 max-w-xl">
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
               Users
@@ -56,6 +57,10 @@ export default function AccessControlPage() {
             <TabsTrigger value="permissions" className="flex items-center gap-2">
               <Lock className="h-4 w-4" />
               Permissions
+            </TabsTrigger>
+            <TabsTrigger value="vendor-assignments" className="flex items-center gap-2">
+              <Link2 className="h-4 w-4" />
+              Vendor Assignments
             </TabsTrigger>
           </TabsList>
 
@@ -69,6 +74,10 @@ export default function AccessControlPage() {
 
           <TabsContent value="permissions">
             <PermissionsManagement />
+          </TabsContent>
+
+          <TabsContent value="vendor-assignments">
+            <VendorAssignments />
           </TabsContent>
         </Tabs>
       </div>
