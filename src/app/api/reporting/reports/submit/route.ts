@@ -26,6 +26,12 @@ export async function POST(request: Request) {
       );
     }
 
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
     const body = await request.json();
     const { vendorId, weekStart } = body;
 
@@ -37,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     // Check if user has access to this vendor
-    const hasAccess = await userHasVendorAccess(userId, vendorId);
+    const hasAccess = await userHasVendorAccess(userId, vendorId, authContext);
     if (!hasAccess) {
       return NextResponse.json<ApiResponse<null>>(
         { success: false, error: 'You do not have access to this vendor' },

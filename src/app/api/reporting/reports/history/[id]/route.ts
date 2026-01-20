@@ -48,6 +48,12 @@ export async function GET(
       );
     }
 
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
     const { id } = await params;
 
     if (!id) {
@@ -84,7 +90,7 @@ export async function GET(
     }
 
     // Check if user has access to this vendor
-    const hasAccess = await userHasVendorAccess(userId, report.vendorId);
+    const hasAccess = await userHasVendorAccess(userId, report.vendorId, authContext);
     if (!hasAccess) {
       return NextResponse.json<ApiResponse<null>>(
         { success: false, error: 'You do not have access to this report' },

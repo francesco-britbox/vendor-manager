@@ -38,8 +38,14 @@ export async function PUT(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
     // Check if user has access to this vendor
-    const hasAccess = await userHasVendorAccess(userId, vendorId);
+    const hasAccess = await userHasVendorAccess(userId, vendorId, authContext);
     if (!hasAccess) {
       return NextResponse.json<ApiResponse<null>>(
         { success: false, error: 'You do not have access to this vendor' },
@@ -98,8 +104,14 @@ export async function DELETE(request: Request, { params }: RouteParams) {
       );
     }
 
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
     // Check if user has access to this vendor
-    const hasAccess = await userHasVendorAccess(userId, vendorId);
+    const hasAccess = await userHasVendorAccess(userId, vendorId, authContext);
     if (!hasAccess) {
       return NextResponse.json<ApiResponse<null>>(
         { success: false, error: 'You do not have access to this vendor' },

@@ -26,7 +26,13 @@ export async function GET() {
       );
     }
 
-    const vendors = await getAssignedVendors(userId);
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
+    const vendors = await getAssignedVendors(userId, authContext);
 
     return NextResponse.json<ApiResponse<{ vendors: AssignedVendor[] }>>({
       success: true,

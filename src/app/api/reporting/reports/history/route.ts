@@ -60,6 +60,12 @@ export async function GET(request: Request) {
       );
     }
 
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const vendorIds = searchParams.getAll('vendorId');
@@ -71,8 +77,8 @@ export async function GET(request: Request) {
     const sortBy = searchParams.get('sortBy') || 'weekStart';
     const sortOrder = searchParams.get('sortOrder') || 'desc';
 
-    // Get user's assigned vendors
-    const assignedVendors = await getAssignedVendors(userId);
+    // Get user's assigned vendors (admins/super users get all vendors)
+    const assignedVendors = await getAssignedVendors(userId, authContext);
 
     if (assignedVendors.length === 0) {
       return NextResponse.json<ApiResponse<ReportHistoryResponse>>({

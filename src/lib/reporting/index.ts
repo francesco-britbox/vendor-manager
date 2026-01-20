@@ -17,6 +17,23 @@ import type {
   RAGStatus,
   ValidationResult,
 } from '@/types/delivery-reporting';
+import type { PermissionLevel } from '@/types';
+
+/**
+ * Auth context for checking admin/superuser access bypass
+ */
+export interface ReportingAuthContext {
+  permissionLevel?: PermissionLevel;
+  isSuperUser?: boolean;
+}
+
+/**
+ * Check if the auth context grants full access (admin or super user)
+ */
+function hasFullAccess(authContext?: ReportingAuthContext): boolean {
+  if (!authContext) return false;
+  return authContext.isSuperUser === true || authContext.permissionLevel === 'admin';
+}
 
 // ============================================================================
 // VALIDATION SCHEMAS
@@ -149,8 +166,25 @@ export function validateVendorResource(data: unknown) {
 
 /**
  * Get vendors assigned to a user for delivery management
+ * Admins and super users get access to all vendors
  */
-export async function getAssignedVendors(userId: string) {
+export async function getAssignedVendors(userId: string, authContext?: ReportingAuthContext) {
+  // Admins and super users can see all vendors
+  if (hasFullAccess(authContext)) {
+    const vendors = await prisma.vendor.findMany({
+      select: {
+        id: true,
+        name: true,
+        status: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+    return vendors;
+  }
+
+  // Regular users only see their assigned vendors
   const assignments = await prisma.deliveryManagerVendor.findMany({
     where: { userId },
     include: {
@@ -178,8 +212,19 @@ export async function getAssignedVendors(userId: string) {
 
 /**
  * Check if a user has access to a specific vendor
+ * Admins and super users have access to all vendors
  */
-export async function userHasVendorAccess(userId: string, vendorId: string): Promise<boolean> {
+export async function userHasVendorAccess(
+  userId: string,
+  vendorId: string,
+  authContext?: ReportingAuthContext
+): Promise<boolean> {
+  // Admins and super users have access to all vendors
+  if (hasFullAccess(authContext)) {
+    return true;
+  }
+
+  // Regular users need an assignment
   const assignment = await prisma.deliveryManagerVendor.findUnique({
     where: {
       userId_vendorId: {

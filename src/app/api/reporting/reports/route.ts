@@ -37,6 +37,12 @@ export async function GET(request: Request) {
       );
     }
 
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const vendorId = searchParams.get('vendorId');
@@ -50,7 +56,7 @@ export async function GET(request: Request) {
     }
 
     // Check if user has access to this vendor
-    const hasAccess = await userHasVendorAccess(userId, vendorId);
+    const hasAccess = await userHasVendorAccess(userId, vendorId, authContext);
     if (!hasAccess) {
       return NextResponse.json<ApiResponse<null>>(
         { success: false, error: 'You do not have access to this vendor' },
@@ -105,6 +111,12 @@ export async function POST(request: Request) {
       );
     }
 
+    // Build auth context for access checks
+    const authContext = {
+      permissionLevel: authResult.user.permissionLevel,
+      isSuperUser: authResult.user.isSuperUser,
+    };
+
     const body = await request.json();
 
     // Validate input
@@ -120,7 +132,7 @@ export async function POST(request: Request) {
     }
 
     // Check if user has access to this vendor
-    const hasAccess = await userHasVendorAccess(userId, validation.data.vendorId);
+    const hasAccess = await userHasVendorAccess(userId, validation.data.vendorId, authContext);
     if (!hasAccess) {
       return NextResponse.json<ApiResponse<null>>(
         { success: false, error: 'You do not have access to this vendor' },
