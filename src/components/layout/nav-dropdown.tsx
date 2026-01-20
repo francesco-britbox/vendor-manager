@@ -20,6 +20,8 @@ interface NavDropdownChildItem {
   label: string;
   testId?: string;
   icon?: LucideIcon;
+  /** RBAC resource key (used for filtering, not rendered) */
+  resourceKey?: string;
 }
 
 interface NavDropdownProps {

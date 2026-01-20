@@ -6,6 +6,7 @@ import { NavDropdown } from "./nav-dropdown";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { Users, Clock, FileText, Briefcase, Building2 } from "lucide-react";
+import { useRBACPermissions } from "@/hooks/use-rbac-permissions";
 
 /**
  * Navigation item configuration
@@ -16,16 +17,18 @@ interface NavItem {
   testId?: string;
   /** If true, only matches exact path. Default: false (matches path prefix) */
   exact?: boolean;
+  /** RBAC resource key for permission checking */
+  resourceKey?: string;
 }
 
 /**
  * Child items for the Vendors Management dropdown
  */
 const vendorsManagementChildren = [
-  { href: "/vendors", label: "Vendors", testId: "nav-vendors", icon: Building2 },
-  { href: "/team-members", label: "Team Members", testId: "nav-team-members", icon: Users },
-  { href: "/timesheet", label: "Timesheet", testId: "nav-timesheet", icon: Clock },
-  { href: "/invoices", label: "Invoices", testId: "nav-invoices", icon: FileText },
+  { href: "/vendors", label: "Vendors", testId: "nav-vendors", icon: Building2, resourceKey: "page:vendors" },
+  { href: "/team-members", label: "Team Members", testId: "nav-team-members", icon: Users, resourceKey: "page:team-members" },
+  { href: "/timesheet", label: "Timesheet", testId: "nav-timesheet", icon: Clock, resourceKey: "page:timesheet" },
+  { href: "/invoices", label: "Invoices", testId: "nav-invoices", icon: FileText, resourceKey: "page:invoices" },
 ];
 
 /**
@@ -35,24 +38,46 @@ const vendorsManagementChildren = [
  */
 export function MainNav() {
   const pathname = usePathname();
+  const { canAccess, isLoading, isSuperUser } = useRBACPermissions();
 
   const navItems: NavItem[] = [
-    { href: "/dashboard", label: "Dashboard", testId: "nav-dashboard", exact: true },
+    { href: "/dashboard", label: "Dashboard", testId: "nav-dashboard", exact: true, resourceKey: "page:dashboard" },
     // Vendors, Team Members, Timesheet, and Invoices are under "Vendors Management" dropdown
-    { href: "/analytics", label: "Analytics", testId: "nav-analytics" },
-    { href: "/reports", label: "Reports", testId: "nav-reports" },
+    { href: "/analytics", label: "Analytics", testId: "nav-analytics", resourceKey: "page:analytics" },
+    { href: "/reports", label: "Reports", testId: "nav-reports", resourceKey: "page:reports" },
     // Settings links to /settings/roles as the entry point, but highlights for all /settings/* routes
-    { href: "/settings/roles", label: "Settings", testId: "nav-settings" },
+    { href: "/settings/roles", label: "Settings", testId: "nav-settings", resourceKey: "page:settings" },
   ];
 
   // Check if we're on any settings page (for the Settings nav item)
   const isSettingsActive = pathname.startsWith("/settings");
+
+  // Filter nav items based on RBAC permissions
+  const canAccessResource = (resourceKey?: string): boolean => {
+    // While loading, show all items to prevent flash
+    if (isLoading) return true;
+    // Super users can access everything
+    if (isSuperUser) return true;
+    // If no resource key, allow access (not protected)
+    if (!resourceKey) return true;
+    return canAccess(resourceKey);
+  };
+
+  // Filter dropdown children based on permissions
+  const filteredDropdownChildren = vendorsManagementChildren.filter(
+    (child) => canAccessResource(child.resourceKey)
+  );
 
   // Helper to render nav items with the Vendors Management dropdown in the correct position
   const renderNavItems = () => {
     const elements: React.ReactNode[] = [];
 
     navItems.forEach((item) => {
+      // Skip items user doesn't have access to
+      if (!canAccessResource(item.resourceKey)) {
+        return;
+      }
+
       // Add the Vendors Management dropdown after Dashboard
       if (item.href === "/dashboard") {
         elements.push(
@@ -66,16 +91,18 @@ export function MainNav() {
           </NavLink>
         );
 
-        // Add the Vendors Management dropdown
-        elements.push(
-          <NavDropdown
-            key="vendors-management"
-            label="Vendors Management"
-            icon={Briefcase}
-            items={vendorsManagementChildren}
-            testId="nav-vendors-management"
-          />
-        );
+        // Add the Vendors Management dropdown only if user has access to any child
+        if (filteredDropdownChildren.length > 0) {
+          elements.push(
+            <NavDropdown
+              key="vendors-management"
+              label="Vendors Management"
+              icon={Briefcase}
+              items={filteredDropdownChildren}
+              testId="nav-vendors-management"
+            />
+          );
+        }
         return;
       }
 

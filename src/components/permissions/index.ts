@@ -23,3 +23,6 @@ export {
   ComponentGuard,
   useMultiplePermissions,
 } from "./rbac-guard";
+
+// Server-side page access check
+export { PageAccessCheck } from "./page-access-check";
