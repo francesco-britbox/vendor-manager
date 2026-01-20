@@ -12,6 +12,7 @@ import {
   Settings2,
   Bot,
   Shield,
+  Mail,
 } from 'lucide-react';
 
 /**
@@ -41,6 +42,13 @@ const settingsNavItems = [
     label: 'Configuration',
     icon: Settings2,
     description: 'System-wide settings & AI',
+  },
+  {
+    href: '/settings/email',
+    label: 'Email Service',
+    icon: Mail,
+    description: 'SMTP email configuration',
+    adminOnly: true,
   },
   {
     href: '/settings/access-control',
@@ -131,6 +139,26 @@ export default function SettingsLayout({
             )}
           >
             Go to Configuration →
+          </Link>
+        </div>
+
+        {/* Email Service Quick Link */}
+        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2 mb-2">
+            <Mail className="h-4 w-4 text-blue-600" />
+            <span className="text-sm font-medium">Email Service</span>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Configure SMTP settings to enable email notifications and alerts from the application.
+          </p>
+          <Link
+            href="/settings/email"
+            className={cn(
+              'inline-flex items-center text-xs font-medium text-blue-600 hover:underline',
+              pathname === '/settings/email' && 'underline'
+            )}
+          >
+            Configure Email →
           </Link>
         </div>
       </aside>

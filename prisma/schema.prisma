@@ -584,6 +584,69 @@ model AIUsageLog {
   @@map("ai_usage_logs")
 }
 
+/// EmailConfig model for storing SMTP configuration with encrypted credentials
+model EmailConfig {
+  id                 String    @id @default(cuid())
+  host               String    @db.VarChar(255)       // SMTP server hostname
+  port               Int                              // SMTP port (25, 587, 465, 2465)
+  secure             Boolean   @default(true)         // TLS enabled
+  encryptedUsername  String    @db.Text               // Encrypted SMTP username
+  encryptedPassword  String    @db.Text               // Encrypted SMTP password
+  fromAddress        String    @db.VarChar(255)       // Sender email address
+  fromName           String?   @db.VarChar(255)       // Sender display name
+  replyTo            String?   @db.VarChar(255)       // Reply-to address
+  isEnabled          Boolean   @default(true)
+  // Test/audit fields
+  lastTestedAt       DateTime?                        // When connection was last tested
+  lastTestStatus     String?   @db.VarChar(20)        // 'success', 'error', 'timeout'
+  lastTestMessage    String?   @db.Text               // Last test result message
+  // Usage tracking
+  usageCount         Int       @default(0)            // Number of emails sent
+  lastUsedAt         DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@map("email_configs")
+}
+
+/// EmailLog model for tracking all email sending attempts (audit trail)
+model EmailLog {
+  id           String   @id @default(cuid())
+  recipient    String   @db.VarChar(255)              // Recipient email address
+  subject      String   @db.VarChar(500)              // Email subject
+  status       String   @db.VarChar(20)               // 'sent', 'failed', 'queued'
+  errorMessage String?  @db.Text                      // Error details if failed
+  messageId    String?  @db.VarChar(255)              // SMTP message ID
+  // Metadata
+  userId       String?                                // User who triggered the email
+  module       String?  @db.VarChar(100)              // Module that sent the email
+  emailType    String?  @db.VarChar(50)               // 'test', 'notification', 'alert', etc.
+  metadata     Json?                                  // Additional metadata
+  sentAt       DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([recipient])
+  @@index([status])
+  @@index([userId])
+  @@index([sentAt])
+  @@index([emailType])
+  @@map("email_logs")
+}
+
+/// EmailRateLimit model for tracking email sending rates per user/IP
+model EmailRateLimit {
+  id         String   @id @default(cuid())
+  identifier String   @unique @db.VarChar(255)       // User ID or IP address
+  count      Int      @default(0)                    // Number of emails sent in window
+  windowStart DateTime @default(now())               // Start of rate limit window
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@index([windowStart])
+  @@map("email_rate_limits")
+}
+
 // ============================================================================
 // JUNCTION TABLES (Many-to-Many Relationships)
 // ============================================================================

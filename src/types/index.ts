@@ -259,6 +259,57 @@ export interface AISettings {
   defaultProvider: AIProvider | null;
 }
 
+// Email Configuration
+export interface EmailConfig {
+  id: string;
+  host: string;
+  port: number;
+  secure: boolean;
+  hasCredentials: boolean; // Don't expose actual credentials
+  maskedUsername: string; // Masked version for display
+  maskedPassword: string; // Masked version for display
+  fromAddress: string;
+  fromName?: string;
+  replyTo?: string;
+  isEnabled: boolean;
+  lastTestedAt?: Date;
+  lastTestStatus?: 'success' | 'error' | 'timeout';
+  lastTestMessage?: string;
+  usageCount: number;
+  lastUsedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Email Log for audit trail
+export interface EmailLog {
+  id: string;
+  recipient: string;
+  subject: string;
+  status: 'sent' | 'failed' | 'queued';
+  errorMessage?: string;
+  messageId?: string;
+  userId?: string;
+  module?: string;
+  emailType?: string;
+  metadata?: Record<string, unknown>;
+  sentAt: Date;
+  createdAt: Date;
+}
+
+// Email Settings (for form data)
+export interface EmailSettings {
+  host: string;
+  port: number;
+  secure: boolean;
+  username: string;
+  password: string;
+  fromAddress: string;
+  fromName?: string;
+  replyTo?: string;
+  isEnabled: boolean;
+}
+
 // Contract AI Analysis interface
 export interface ContractAnalysis {
   expirationDate?: string;
