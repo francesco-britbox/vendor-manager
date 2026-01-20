@@ -9,8 +9,8 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Vendors Manager",
-  description: "Comprehensive vendor management application",
+  title: "Delivery Manager",
+  description: "Comprehensive delivery and vendor management application",
 };
 
 export default function RootLayout({

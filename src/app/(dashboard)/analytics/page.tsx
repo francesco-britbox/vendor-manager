@@ -2,7 +2,7 @@ import { AnalyticsDashboard } from '@/components/analytics';
 import { PageAccessCheck } from '@/components/permissions';
 
 export const metadata = {
-  title: 'Analytics Dashboard | Vendors Manager',
+  title: 'Analytics Dashboard | Delivery Manager',
   description: 'Comprehensive analytics dashboard with spend tracking, vendor metrics, and contract insights',
 };
 

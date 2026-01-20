@@ -2,7 +2,7 @@ import { InvoiceConfig } from '@/components/invoices';
 import { PageAccessCheck } from '@/components/permissions';
 
 export const metadata = {
-  title: 'Invoices | Vendors Manager',
+  title: 'Invoices | Delivery Manager',
   description: 'Manage invoices and validate against timesheet spend',
 };
 

@@ -30,7 +30,7 @@ export function generateInvitationEmail(params: InvitationEmailParams): { html: 
     userName,
     userEmail,
     setupUrl,
-    appName = 'Vendor Management System',
+    appName = 'Delivery Manager',
     expirationHours = 48,
   } = params;
 
@@ -170,7 +170,7 @@ export function generatePasswordResetEmail(params: PasswordResetEmailParams): { 
     userName,
     userEmail,
     resetUrl,
-    appName = 'Vendor Management System',
+    appName = 'Delivery Manager',
     expirationHours = 2,
   } = params;
 

@@ -2,7 +2,7 @@ import { TimesheetManagement } from '@/components/timesheet';
 import { PageAccessCheck } from '@/components/permissions';
 
 export const metadata = {
-  title: 'Timesheet | Vendors Manager',
+  title: 'Timesheet | Delivery Manager',
   description: 'Enter and manage team member timesheets and track monthly hours',
 };
 

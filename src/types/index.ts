@@ -1,4 +1,4 @@
-// Core entity types for the Vendors Manager application
+// Core entity types for the Delivery Manager application
 
 export type PermissionLevel = "denied" | "view" | "write" | "admin";
 

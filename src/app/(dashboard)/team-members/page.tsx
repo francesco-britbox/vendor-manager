@@ -2,7 +2,7 @@ import { TeamMemberConfig } from '@/components/team-members';
 import { PageAccessCheck } from '@/components/permissions';
 
 export const metadata = {
-  title: 'Team Members | Vendors Manager',
+  title: 'Team Members | Delivery Manager',
   description: 'Manage your team members and their assignments',
 };
 

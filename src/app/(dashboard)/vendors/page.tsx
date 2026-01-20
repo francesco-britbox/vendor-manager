@@ -2,7 +2,7 @@ import { VendorConfig } from '@/components/vendors';
 import { PageAccessCheck } from '@/components/permissions';
 
 export const metadata = {
-  title: 'Vendors | Vendors Manager',
+  title: 'Vendors | Delivery Manager',
   description: 'Manage your vendors and their information',
 };
 
