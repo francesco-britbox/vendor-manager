@@ -2,8 +2,9 @@ import { Metadata } from 'next';
 import { PageAccessCheck } from '@/components/permissions';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { FileText, Plus, Clock, AlertCircle } from 'lucide-react';
+import { Plus, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { ReportHistoryTable } from '@/components/reporting';
 
 export const metadata: Metadata = {
   title: 'Reporting',
@@ -23,7 +24,7 @@ export default async function ReportingPage() {
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-6">
           {/* Create Report Card */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader>
@@ -46,29 +47,8 @@ export default async function ReportingPage() {
             </CardContent>
           </Card>
 
-          {/* View History Card */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <div className="p-2 rounded-lg bg-blue-100">
-                  <Clock className="h-5 w-5 text-blue-600" />
-                </div>
-                <CardTitle className="text-lg">Report History</CardTitle>
-              </div>
-              <CardDescription>
-                View and manage previously submitted reports
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-4 text-muted-foreground">
-                <FileText className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                <p className="text-sm">Coming soon</p>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Info Card */}
-          <Card className="hover:shadow-md transition-shadow">
+          <Card className="hover:shadow-md transition-shadow md:col-span-1 lg:col-span-2">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-amber-100">
@@ -81,7 +61,7 @@ export default async function ReportingPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ul className="text-sm text-muted-foreground space-y-2">
+              <ul className="text-sm text-muted-foreground space-y-2 md:flex md:gap-6 md:space-y-0">
                 <li className="flex items-start gap-2">
                   <span className="text-primary mt-1">•</span>
                   <span>Reports auto-save as you type</span>
@@ -98,6 +78,9 @@ export default async function ReportingPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Report History Table */}
+        <ReportHistoryTable />
       </div>
     </PageAccessCheck>
   );

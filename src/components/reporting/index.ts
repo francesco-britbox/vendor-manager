@@ -12,3 +12,5 @@ export { TimelineSection } from './timeline-section';
 export { RAIDSection } from './raid-section';
 export { ResourcesSection } from './resources-section';
 export { ReportForm } from './report-form';
+export { ReportHistoryTable } from './ReportHistoryTable';
+export { ReportDetailModal } from './ReportDetailModal';
