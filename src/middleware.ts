@@ -9,7 +9,13 @@ import {
 import type { PermissionLevel } from "@/types";
 
 // Routes that don't require authentication
-const publicRoutes = ["/login", "/api/auth", "/api/currencies"];
+const publicRoutes = [
+  "/login",
+  "/api/auth",
+  "/api/currencies",
+  "/auth/setup-password",
+  "/auth/forgot-password",
+];
 
 // Routes that are public for reading but require auth for writing
 const publicReadRoutes = ["/api/exchange-rates"];

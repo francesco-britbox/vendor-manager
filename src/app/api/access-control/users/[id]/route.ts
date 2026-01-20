@@ -67,6 +67,15 @@ export async function GET(request: Request, { params }: RouteParams) {
         id: ug.group.id,
         name: ug.group.name,
       })),
+      // Invitation status tracking
+      status: user.status,
+      invitationSentAt: user.invitationSentAt || undefined,
+      invitationAcceptedAt: user.invitationAcceptedAt || undefined,
+      passwordSetAt: user.passwordSetAt || undefined,
+      // Email delivery tracking
+      lastEmailSentAt: user.lastEmailSentAt || undefined,
+      lastEmailDeliveryStatus: user.lastEmailDeliveryStatus || undefined,
+      lastEmailError: user.lastEmailError || undefined,
     };
 
     return NextResponse.json<ApiResponse<UserForManagement>>({
@@ -238,6 +247,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
             id: ug.group.id,
             name: ug.group.name,
           })),
+          // Invitation status tracking
+          status: updatedUser.status,
+          invitationSentAt: updatedUser.invitationSentAt || undefined,
+          invitationAcceptedAt: updatedUser.invitationAcceptedAt || undefined,
+          passwordSetAt: updatedUser.passwordSetAt || undefined,
+          // Email delivery tracking
+          lastEmailSentAt: updatedUser.lastEmailSentAt || undefined,
+          lastEmailDeliveryStatus: updatedUser.lastEmailDeliveryStatus || undefined,
+          lastEmailError: updatedUser.lastEmailError || undefined,
         };
 
         return NextResponse.json<ApiResponse<UserForManagement>>({
@@ -261,6 +279,15 @@ export async function PUT(request: Request, { params }: RouteParams) {
         id: ug.group.id,
         name: ug.group.name,
       })),
+      // Invitation status tracking
+      status: user.status,
+      invitationSentAt: user.invitationSentAt || undefined,
+      invitationAcceptedAt: user.invitationAcceptedAt || undefined,
+      passwordSetAt: user.passwordSetAt || undefined,
+      // Email delivery tracking
+      lastEmailSentAt: user.lastEmailSentAt || undefined,
+      lastEmailDeliveryStatus: user.lastEmailDeliveryStatus || undefined,
+      lastEmailError: user.lastEmailError || undefined,
     };
 
     return NextResponse.json<ApiResponse<UserForManagement>>({

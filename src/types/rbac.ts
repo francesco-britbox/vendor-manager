@@ -78,6 +78,12 @@ export interface UserWithGroups {
   groups?: UserGroupMembership[];
 }
 
+/** User status for invitation workflow */
+export type UserStatus = 'invited' | 'active';
+
+/** Email delivery status */
+export type EmailDeliveryStatus = 'pending' | 'sent' | 'failed';
+
 /** User for management UI */
 export interface UserForManagement {
   id: string;
@@ -92,6 +98,15 @@ export interface UserForManagement {
     id: string;
     name: string;
   }>;
+  // Invitation status tracking (two-stage flow: invited → active)
+  status: UserStatus;
+  invitationSentAt?: Date;
+  invitationAcceptedAt?: Date;
+  passwordSetAt?: Date;
+  // Email delivery tracking
+  lastEmailSentAt?: Date;
+  lastEmailDeliveryStatus?: EmailDeliveryStatus;
+  lastEmailError?: string;
 }
 
 /** User creation/update input */
@@ -103,6 +118,7 @@ export interface UserInput {
   isActive?: boolean;
   isSuperUser?: boolean;
   groupIds?: string[];
+  sendInvitation?: boolean;
 }
 
 // ============================================================================
@@ -355,3 +371,33 @@ export const ALL_PROTECTABLE_RESOURCES: StaticResourceDefinition[] = [
   ...PROTECTABLE_PAGES,
   ...PROTECTABLE_COMPONENTS,
 ];
+
+// ============================================================================
+// INVITATION AUDIT TYPES
+// ============================================================================
+
+/** Invitation audit log action types */
+export type InvitationAuditAction =
+  | 'invitation_created'
+  | 'invitation_sent'
+  | 'invitation_resent'
+  | 'invitation_accepted'
+  | 'invitation_failed'
+  | 'status_changed';
+
+/** Invitation audit log entry */
+export interface InvitationAuditLog {
+  id: string;
+  userId: string;
+  action: InvitationAuditAction;
+  previousStatus?: UserStatus;
+  newStatus?: UserStatus;
+  emailStatus?: EmailDeliveryStatus;
+  emailMessageId?: string;
+  errorMessage?: string;
+  triggeredBy?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  metadata?: Record<string, unknown>;
+  createdAt: Date;
+}

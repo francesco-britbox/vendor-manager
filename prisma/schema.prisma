@@ -22,6 +22,21 @@ enum PermissionLevel {
   admin
 }
 
+/// User status for invitation workflow
+/// invited: User has been created but hasn't completed account setup
+/// active: User has completed invitation acceptance and set their password
+enum UserStatus {
+  invited
+  active
+}
+
+/// Email delivery status for tracking email send operations
+enum EmailDeliveryStatus {
+  pending
+  sent
+  failed
+}
+
 enum VendorStatus {
   active
   inactive
@@ -88,14 +103,28 @@ model User {
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
+  // Invitation status tracking (two-stage flow: invited → active)
+  status                    UserStatus          @default(active) // User status in invitation workflow
+  invitationSentAt          DateTime?           // When invitation email was last sent
+  invitationAcceptedAt      DateTime?           // When user completed invitation acceptance
+  passwordSetAt             DateTime?           // When user set their password (null if never)
+
+  // Email delivery tracking
+  lastEmailSentAt           DateTime?           // Timestamp of last email send attempt
+  lastEmailDeliveryStatus   EmailDeliveryStatus? // Status of last email delivery
+  lastEmailError            String?    @db.Text // Error message if last email failed
+
   // Relationships
   groups                UserGroup[]              // Groups this user belongs to
   deliveryManagerVendors DeliveryManagerVendor[] // Vendors assigned to this user as delivery manager
+  passwordResetTokens   PasswordResetToken[]     // Password reset/invitation tokens
+  invitationAuditLogs   InvitationAuditLog[]     // Audit log for invitation lifecycle
 
   @@index([email])
   @@index([permissionLevel])
   @@index([isActive])
   @@index([isSuperUser])
+  @@index([status])
   @@map("users")
 }
 
@@ -647,6 +676,26 @@ model EmailRateLimit {
   @@map("email_rate_limits")
 }
 
+/// PasswordResetToken model for password reset and invitation flows
+/// Used for both user invitations and forgot password functionality
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String                                   // Reference to user
+  token     String   @unique                         // Encrypted token for URL
+  type      String   @db.VarChar(20)                 // 'invitation' or 'reset'
+  expiresAt DateTime                                 // Token expiration time
+  usedAt    DateTime?                                // When token was used (null if unused)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+  @@index([type])
+  @@map("password_reset_tokens")
+}
+
 // ============================================================================
 // JUNCTION TABLES (Many-to-Many Relationships)
 // ============================================================================
@@ -839,4 +888,33 @@ model VendorResource {
 
   @@index([vendorId])
   @@map("vendor_resources")
+}
+
+// ============================================================================
+// INVITATION AUDIT LOG
+// ============================================================================
+
+/// InvitationAuditLog model for tracking invitation lifecycle events
+/// Provides a complete audit trail of all invitation-related activities
+model InvitationAuditLog {
+  id            String   @id @default(cuid())
+  userId        String                                // User the event relates to
+  action        String   @db.VarChar(50)              // Event type: 'invitation_created', 'invitation_sent', 'invitation_resent', 'invitation_accepted', 'invitation_failed', 'status_changed'
+  previousStatus String?  @db.VarChar(20)             // Previous user status before change
+  newStatus     String?  @db.VarChar(20)              // New user status after change
+  emailStatus   String?  @db.VarChar(20)              // Email delivery status: 'pending', 'sent', 'failed'
+  emailMessageId String? @db.VarChar(255)             // SMTP message ID for email tracking
+  errorMessage  String?  @db.Text                     // Error details if action failed
+  triggeredBy   String?                               // User ID of admin who triggered the action (null for system actions)
+  ipAddress     String?  @db.VarChar(45)              // IP address for security audit
+  userAgent     String?  @db.Text                     // User agent string for security audit
+  metadata      Json?                                 // Additional metadata (JSON)
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("invitation_audit_logs")
 }

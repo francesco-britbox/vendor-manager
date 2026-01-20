@@ -2,6 +2,12 @@
 
 export type PermissionLevel = "denied" | "view" | "write" | "admin";
 
+// User status for invitation workflow
+export type UserStatus = "invited" | "active";
+
+// Email delivery status for tracking
+export type EmailDeliveryStatus = "pending" | "sent" | "failed";
+
 // Re-export RBAC types
 export * from './rbac';
 

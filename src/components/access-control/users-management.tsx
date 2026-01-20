@@ -45,7 +45,17 @@ import {
   UserX,
   UserCheck,
   Loader2,
+  Mail,
+  Send,
+  Clock,
+  MailX,
 } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { UserForManagement, GroupWithCounts } from '@/types';
 
 interface UsersManagementProps {
@@ -61,6 +71,7 @@ interface UserFormData {
   isActive: boolean;
   isSuperUser: boolean;
   groupIds: string[];
+  sendInvitation: boolean;
 }
 
 const defaultFormData: UserFormData = {
@@ -71,6 +82,7 @@ const defaultFormData: UserFormData = {
   isActive: true,
   isSuperUser: false,
   groupIds: [],
+  sendInvitation: true, // Checked by default
 };
 
 export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagementProps) {
@@ -95,6 +107,9 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
 
   // Super user confirmation dialog
   const [superUserDialogOpen, setSuperUserDialogOpen] = React.useState(false);
+
+  // Resend invitation state
+  const [resendingInvitation, setResendingInvitation] = React.useState<string | null>(null);
 
   // Fetch users
   const fetchUsers = React.useCallback(async () => {
@@ -159,9 +174,41 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
       isActive: user.isActive,
       isSuperUser: user.isSuperUser,
       groupIds: user.groups.map((g) => g.id),
+      sendInvitation: false, // Don't show for edit mode
     });
     setDialogMode('edit');
     setDialogOpen(true);
+  };
+
+  // Handle resend invitation
+  const handleResendInvitation = async (user: UserForManagement) => {
+    setResendingInvitation(user.id);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/access-control/users/${user.id}/invite`, {
+        method: 'POST',
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to send invitation');
+      }
+
+      // Show success message with email sent timestamp
+      const sentAt = data.data?.emailSentAt ? new Date(data.data.emailSentAt).toLocaleTimeString() : 'now';
+      setSuccess(`✓ Invitation email sent to ${user.email} at ${sentAt}`);
+
+      // Refresh user list to show updated email status
+      fetchUsers();
+    } catch (err) {
+      // Show error message with actionable guidance
+      const errorMessage = err instanceof Error ? err.message : 'Failed to send invitation';
+      setError(`✕ Email failed: ${errorMessage}. Please check SMTP settings or try again.`);
+    } finally {
+      setResendingInvitation(null);
+    }
   };
 
   // Handle form submission
@@ -208,8 +255,17 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
         groupIds: formData.groupIds,
       };
 
-      if (formData.password) {
-        body.password = formData.password;
+      // For create mode, add invitation and password
+      if (dialogMode === 'create') {
+        body.sendInvitation = formData.sendInvitation;
+        if (!formData.sendInvitation && formData.password) {
+          body.password = formData.password;
+        }
+      } else {
+        // For edit mode, include password if provided
+        if (formData.password) {
+          body.password = formData.password;
+        }
       }
 
       const response = await fetch(url, {
@@ -224,9 +280,23 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
         throw new Error(data.error || 'Failed to save user');
       }
 
-      setSuccess(
-        dialogMode === 'create' ? 'User created successfully' : 'User updated successfully'
-      );
+      // Build success message with email delivery feedback
+      let successMessage = dialogMode === 'create' ? '✓ User created successfully' : '✓ User updated successfully';
+      if (dialogMode === 'create' && formData.sendInvitation) {
+        if (data.data?.invitationSent) {
+          const emailSentAt = data.data?.lastEmailSentAt
+            ? new Date(data.data.lastEmailSentAt).toLocaleTimeString()
+            : 'now';
+          successMessage += `. Invitation email sent at ${emailSentAt}.`;
+        } else {
+          // Show email failure but user was still created
+          successMessage += `. ⚠️ Warning: User created but invitation email failed. You can resend the invitation.`;
+          if (data.data?.lastEmailError) {
+            successMessage += ` Error: ${data.data.lastEmailError}`;
+          }
+        }
+      }
+      setSuccess(successMessage);
       setDialogOpen(false);
       setSuperUserDialogOpen(false);
       fetchUsers();
@@ -292,6 +362,7 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
   }, [error]);
 
   return (
+    <TooltipProvider>
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between">
@@ -335,13 +406,15 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[200px]">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Users</SelectItem>
               <SelectItem value="active">Active Only</SelectItem>
               <SelectItem value="inactive">Inactive Only</SelectItem>
+              <SelectItem value="invited">Pending Setup</SelectItem>
+              <SelectItem value="email_failed">Email Failed</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -387,17 +460,47 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      {user.isActive ? (
-                        <Badge variant="outline" className="text-green-600 border-green-600">
-                          <UserCheck className="h-3 w-3 mr-1" />
-                          Active
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-gray-500 border-gray-400">
-                          <UserX className="h-3 w-3 mr-1" />
-                          Inactive
-                        </Badge>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {/* User Status: Pending Setup (invited) or Active/Inactive (completed setup) */}
+                        {user.status === 'invited' ? (
+                          <Badge variant="outline" className="text-amber-600 border-amber-500 w-fit">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending Setup
+                          </Badge>
+                        ) : user.isActive ? (
+                          <Badge variant="outline" className="text-green-600 border-green-600 w-fit">
+                            <UserCheck className="h-3 w-3 mr-1" />
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-500 border-gray-400 w-fit">
+                            <UserX className="h-3 w-3 mr-1" />
+                            Inactive
+                          </Badge>
+                        )}
+                        {/* Email Delivery Status (show only if there was an email attempt) */}
+                        {user.lastEmailDeliveryStatus === 'failed' && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge variant="outline" className="text-red-600 border-red-500 w-fit cursor-help">
+                                <MailX className="h-3 w-3 mr-1" />
+                                Email Failed
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="font-semibold">Email delivery failed</p>
+                              {user.lastEmailError && (
+                                <p className="text-xs text-muted-foreground mt-1">{user.lastEmailError}</p>
+                              )}
+                              {user.lastEmailSentAt && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Last attempt: {new Date(user.lastEmailSentAt).toLocaleString()}
+                                </p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -413,25 +516,76 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenEdit(user)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setUserToDelete(user);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                        <div className="flex justify-end gap-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant={user.lastEmailDeliveryStatus === 'failed' ? 'destructive' : 'outline'}
+                                size="sm"
+                                onClick={() => handleResendInvitation(user)}
+                                disabled={resendingInvitation === user.id}
+                              >
+                                {resendingInvitation === user.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : user.lastEmailDeliveryStatus === 'failed' ? (
+                                  <MailX className="h-4 w-4" />
+                                ) : (
+                                  <Send className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="font-semibold">
+                                {user.lastEmailDeliveryStatus === 'failed'
+                                  ? 'Retry sending invitation (previous attempt failed)'
+                                  : user.status === 'invited'
+                                  ? 'Resend invitation email'
+                                  : 'Send new invitation email'}
+                              </p>
+                              {user.invitationSentAt && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Last sent: {new Date(user.invitationSentAt).toLocaleString()}
+                                </p>
+                              )}
+                              {user.lastEmailDeliveryStatus === 'sent' && user.lastEmailSentAt && (
+                                <p className="text-xs text-green-600 mt-1">
+                                  ✓ Email delivered successfully
+                                </p>
+                              )}
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenEdit(user)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit user</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setUserToDelete(user);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Delete user</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -473,20 +627,55 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">
-                  Password {dialogMode === 'edit' && '(leave blank to keep current)'}
-                </Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, password: e.target.value }))
-                  }
-                  required={dialogMode === 'create'}
-                />
-              </div>
+              {/* Send Invitation Checkbox - only for create mode */}
+              {dialogMode === 'create' && (
+                <div className="rounded-lg border p-4 bg-muted/30">
+                  <div className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      id="sendInvitation"
+                      checked={formData.sendInvitation}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, sendInvitation: e.target.checked }))
+                      }
+                      className="rounded mt-0.5"
+                    />
+                    <div className="space-y-1">
+                      <Label htmlFor="sendInvitation" className="cursor-pointer flex items-center gap-2">
+                        <Mail className="h-4 w-4" />
+                        Send invitation email
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        User will receive an email with a secure link to set their password.
+                        The link expires in 48 hours.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Password Field - only show if not sending invitation or in edit mode */}
+              {(!formData.sendInvitation || dialogMode === 'edit') && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">
+                    Password {dialogMode === 'edit' && '(leave blank to keep current)'}
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, password: e.target.value }))
+                    }
+                    required={dialogMode === 'create' && !formData.sendInvitation}
+                  />
+                  {dialogMode === 'create' && !formData.sendInvitation && (
+                    <p className="text-xs text-muted-foreground">
+                      Set a password manually since invitation email is disabled.
+                    </p>
+                  )}
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="permissionLevel">Permission Level</Label>
                 <Select
@@ -633,5 +822,6 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
         </Dialog>
       </CardContent>
     </Card>
+    </TooltipProvider>
   );
 }
