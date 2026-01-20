@@ -84,13 +84,97 @@ model User {
   name            String
   permissionLevel PermissionLevel @default(view)
   isActive        Boolean         @default(true)
+  isSuperUser     Boolean         @default(false) // Super users have unrestricted access
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
+
+  // Relationships
+  groups          UserGroup[]     // Groups this user belongs to
 
   @@index([email])
   @@index([permissionLevel])
   @@index([isActive])
+  @@index([isSuperUser])
   @@map("users")
+}
+
+// ============================================================================
+// ROLE-BASED ACCESS CONTROL (RBAC) MODELS
+// ============================================================================
+
+/// PermissionGroup model for grouping users with shared permissions
+model PermissionGroup {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?  @db.Text
+  isSystem    Boolean  @default(false) // System groups cannot be deleted (e.g., Administrators)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  users               UserGroup[]
+  resourcePermissions ResourcePermission[]
+
+  @@index([name])
+  @@index([isSystem])
+  @@map("permission_groups")
+}
+
+/// Junction table for User-PermissionGroup many-to-many relationship
+model UserGroup {
+  userId    String
+  groupId   String
+  createdAt DateTime @default(now())
+
+  user  User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group PermissionGroup @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@id([userId, groupId])
+  @@index([userId])
+  @@index([groupId])
+  @@map("user_groups")
+}
+
+/// ProtectableResource model for registering pages and components that can have access control
+model ProtectableResource {
+  id          String   @id @default(cuid())
+  resourceKey String   @unique  // Unique identifier (e.g., "page:dashboard", "component:vendor-documents")
+  type        String   @db.VarChar(20) // 'page' or 'component'
+  name        String   // Human-readable name
+  description String?  @db.Text
+  parentKey   String?  // For components, the parent page's resourceKey
+  path        String?  // For pages, the route path (e.g., "/dashboard")
+  sortOrder   Int      @default(0) // For ordering in the UI
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  permissions ResourcePermission[]
+
+  @@index([resourceKey])
+  @@index([type])
+  @@index([parentKey])
+  @@index([isActive])
+  @@map("protectable_resources")
+}
+
+/// ResourcePermission model for assigning groups to protectable resources
+/// When a resource has no permissions assigned, it's accessible to all authenticated users
+/// When permissions are assigned, only users in those groups (+ super users) can access
+model ResourcePermission {
+  id         String   @id @default(cuid())
+  resourceId String
+  groupId    String
+  createdAt  DateTime @default(now())
+
+  resource ProtectableResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+  group    PermissionGroup     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([resourceId, groupId])
+  @@index([resourceId])
+  @@index([groupId])
+  @@map("resource_permissions")
 }
 
 /// Vendor model representing external service providers

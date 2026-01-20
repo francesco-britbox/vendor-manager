@@ -93,7 +93,7 @@ export async function extractTextFromPDF(
     return {
       success: true,
       text,
-      pageCount: infoResult.numPages || pages.length,
+      pageCount: infoResult.total || pages.length,
       metadata,
     };
   } catch (error) {
@@ -157,7 +157,7 @@ export async function getPDFInfo(pdfBuffer: Buffer): Promise<{
 
     return {
       valid: true,
-      pageCount: infoResult.numPages,
+      pageCount: infoResult.total,
       metadata: info ? {
         title: info.Title || undefined,
         author: info.Author || undefined,
@@ -203,7 +203,7 @@ export async function extractPagesFromPDF(
     return {
       success: true,
       text,
-      pageCount: Math.min(infoResult.numPages || pages.length, endPage - startPage + 1),
+      pageCount: Math.min(infoResult.total || pages.length, endPage - startPage + 1),
     };
   } catch (error) {
     return {

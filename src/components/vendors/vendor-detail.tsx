@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { VendorDialog } from './vendor-dialog';
 import { VendorDocumentsSection } from '@/components/vendor-documents';
+import { ComponentGuard } from '@/components/permissions';
 import {
   ArrowLeft,
   Building2,
@@ -265,79 +266,85 @@ export function VendorDetail({ vendor: initialVendor }: VendorDetailProps) {
           </CardContent>
         </Card>
 
-        {/* Contract Period Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Contract Period
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                Start Date
-              </label>
-              <p className="mt-1" data-testid="vendor-detail-contract-start">
-                {vendor.contractStartDate
-                  ? formatDateOnly(vendor.contractStartDate)
-                  : <span className="text-muted-foreground italic">Not set</span>}
-              </p>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-muted-foreground">
-                End Date
-              </label>
-              <p className="mt-1" data-testid="vendor-detail-contract-end">
-                {vendor.contractEndDate
-                  ? formatDateOnly(vendor.contractEndDate)
-                  : <span className="text-muted-foreground italic">Not set</span>}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Tags Card */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Tag className="h-5 w-5" />
-              Tags
-            </CardTitle>
-            <CardDescription>
-              Tags associated with this vendor
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {vendor.tags && vendor.tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {vendor.tags.map((tag) => (
-                  <span
-                    key={tag.id}
-                    className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium"
-                    style={{
-                      backgroundColor: tag.color
-                        ? `${tag.color}20`
-                        : '#f3f4f6',
-                      color: tag.color || '#374151',
-                    }}
-                  >
-                    {tag.name}
-                  </span>
-                ))}
+        {/* Contract Period Card - Protected by RBAC */}
+        <ComponentGuard componentKey="vendor-contract-period">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="h-5 w-5" />
+                Contract Period
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  Start Date
+                </label>
+                <p className="mt-1" data-testid="vendor-detail-contract-start">
+                  {vendor.contractStartDate
+                    ? formatDateOnly(vendor.contractStartDate)
+                    : <span className="text-muted-foreground italic">Not set</span>}
+                </p>
               </div>
-            ) : (
-              <p className="text-muted-foreground">No tags assigned.</p>
-            )}
-          </CardContent>
-        </Card>
+              <div>
+                <label className="text-sm font-medium text-muted-foreground">
+                  End Date
+                </label>
+                <p className="mt-1" data-testid="vendor-detail-contract-end">
+                  {vendor.contractEndDate
+                    ? formatDateOnly(vendor.contractEndDate)
+                    : <span className="text-muted-foreground italic">Not set</span>}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </ComponentGuard>
+
+        {/* Tags Card - Protected by RBAC */}
+        <ComponentGuard componentKey="vendor-tags">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5" />
+                Tags
+              </CardTitle>
+              <CardDescription>
+                Tags associated with this vendor
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {vendor.tags && vendor.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {vendor.tags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium"
+                      style={{
+                        backgroundColor: tag.color
+                          ? `${tag.color}20`
+                          : '#f3f4f6',
+                        color: tag.color || '#374151',
+                      }}
+                    >
+                      {tag.name}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">No tags assigned.</p>
+              )}
+            </CardContent>
+          </Card>
+        </ComponentGuard>
       </div>
 
-      {/* Vendor Documents Section */}
-      <VendorDocumentsSection
-        vendorId={vendor.id}
-        vendorName={vendor.name}
-      />
+      {/* Vendor Documents Section - Protected by RBAC */}
+      <ComponentGuard componentKey="vendor-documents">
+        <VendorDocumentsSection
+          vendorId={vendor.id}
+          vendorName={vendor.name}
+        />
+      </ComponentGuard>
 
       {/* Edit Dialog */}
       <VendorDialog

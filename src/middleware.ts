@@ -14,6 +14,10 @@ const publicRoutes = ["/login", "/api/auth", "/api/currencies"];
 // Routes that are public for reading but require auth for writing
 const publicReadRoutes = ["/api/exchange-rates"];
 
+// Routes that require admin permission or super user status
+// These are enforced via the legacy permission level system + super user check
+const adminRoutes = ["/settings/access-control", "/api/access-control"];
+
 // Check if path is a public route
 function isPublicRoute(pathname: string): boolean {
   return publicRoutes.some(
@@ -24,6 +28,13 @@ function isPublicRoute(pathname: string): boolean {
 // Check if path is a public read route
 function isPublicReadRoute(pathname: string): boolean {
   return publicReadRoutes.some(
+    (route) => pathname === route || pathname.startsWith(route + "/")
+  );
+}
+
+// Check if path is an admin-only route
+function isAdminRoute(pathname: string): boolean {
+  return adminRoutes.some(
     (route) => pathname === route || pathname.startsWith(route + "/")
   );
 }
@@ -58,8 +69,9 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Get user's permission level from the session
+  // Get user's permission level and super user status from the session
   const userLevel = req.auth?.user?.permissionLevel as PermissionLevel;
+  const isSuperUser = req.auth?.user?.isSuperUser || false;
 
   // Check if user is denied
   if (isDenied(userLevel)) {
@@ -79,8 +91,35 @@ export default auth((req) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Check route-level permissions
+  // Check admin-only routes (Access Control section)
+  // These require either admin permission level OR super user status
+  if (isAdminRoute(pathname)) {
+    const isAdmin = userLevel === "admin";
+    if (!isAdmin && !isSuperUser) {
+      // For API routes, return 403 JSON response
+      if (pathname.startsWith("/api/")) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "Access denied. Admin privileges or super user status required.",
+          },
+          { status: 403 }
+        );
+      }
+      // For page routes, redirect to access denied page
+      return NextResponse.redirect(new URL("/access-denied", nextUrl));
+    }
+    // Admin or super user has access
+    return NextResponse.next();
+  }
+
+  // Check route-level permissions (legacy permission level system)
   if (!canAccessRoute(userLevel, pathname, method)) {
+    // Super users bypass permission level checks
+    if (isSuperUser) {
+      return NextResponse.next();
+    }
+
     const requiredLevel = getRoutePermission(pathname, method);
 
     // For API routes, return 403 JSON response
@@ -94,10 +133,8 @@ export default auth((req) => {
       );
     }
 
-    // For page routes, redirect to dashboard with error (or a permission denied page)
-    const deniedUrl = new URL("/dashboard", nextUrl);
-    deniedUrl.searchParams.set("error", "InsufficientPermissions");
-    return NextResponse.redirect(deniedUrl);
+    // For page routes, redirect to access denied page
+    return NextResponse.redirect(new URL("/access-denied", nextUrl));
   }
 
   // User is authenticated and has permission, allow access

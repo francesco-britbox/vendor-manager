@@ -2,6 +2,9 @@
 
 export type PermissionLevel = "denied" | "view" | "write" | "admin";
 
+// Re-export RBAC types
+export * from './rbac';
+
 export type VendorStatus = "active" | "inactive";
 
 export type TeamMemberStatus = "active" | "inactive" | "onboarding" | "offboarded";
@@ -65,6 +68,7 @@ export interface User extends BaseEntity {
   name: string;
   permissionLevel: PermissionLevel;
   isActive: boolean;
+  isSuperUser: boolean;
 }
 
 // Vendor interface

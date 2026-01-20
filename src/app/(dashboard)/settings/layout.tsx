@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { cn } from '@/lib/utils';
 import {
   Users,
@@ -10,6 +11,7 @@ import {
   ArrowLeftRight,
   Settings2,
   Bot,
+  Shield,
 } from 'lucide-react';
 
 /**
@@ -40,7 +42,22 @@ const settingsNavItems = [
     icon: Settings2,
     description: 'System-wide settings & AI',
   },
+  {
+    href: '/settings/access-control',
+    label: 'Access Control',
+    icon: Shield,
+    description: 'Users, groups & permissions',
+    adminOnly: true,
+  },
 ];
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+  adminOnly?: boolean;
+}
 
 /**
  * Settings layout with navigation sidebar
@@ -51,13 +68,25 @@ export default function SettingsLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+
+  // Filter nav items based on user permissions
+  const visibleNavItems = settingsNavItems.filter((item: NavItem) => {
+    if (item.adminOnly) {
+      // Show admin-only items to admins and super users
+      const isAdmin = session?.user?.permissionLevel === 'admin';
+      const isSuperUser = session?.user?.isSuperUser;
+      return isAdmin || isSuperUser;
+    }
+    return true;
+  });
 
   return (
     <div className="flex flex-col md:flex-row gap-6">
       {/* Settings Navigation Sidebar */}
       <aside className="w-full md:w-64 shrink-0">
         <nav className="space-y-1 bg-card rounded-lg border p-2">
-          {settingsNavItems.map((item) => {
+          {visibleNavItems.map((item: NavItem) => {
             const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
             const Icon = item.icon;
 

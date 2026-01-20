@@ -56,6 +56,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             email: user.email,
             name: user.name,
             permissionLevel: user.permissionLevel,
+            isSuperUser: user.isSuperUser,
           };
         } catch (error) {
           console.error("Auth error:", error);
@@ -72,6 +73,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.email = user.email;
         token.name = user.name;
         token.permissionLevel = user.permissionLevel as PermissionLevel;
+        token.isSuperUser = user.isSuperUser;
       }
       return token;
     },
@@ -82,6 +84,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.email = token.email as string;
         session.user.name = token.name as string;
         session.user.permissionLevel = token.permissionLevel as PermissionLevel;
+        session.user.isSuperUser = token.isSuperUser as boolean;
       }
       return session;
     },
