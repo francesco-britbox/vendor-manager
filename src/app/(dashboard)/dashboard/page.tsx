@@ -7,6 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { MultiTimezoneClockCard } from "@/components/dashboard";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -25,6 +26,9 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {/* Multi-Timezone Clock Card */}
+        <MultiTimezoneClockCard />
+
         <Card>
           <CardHeader>
             <CardTitle>Your Profile</CardTitle>

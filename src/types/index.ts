@@ -495,3 +495,87 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
   dashboard: DEFAULT_DASHBOARD_SETTINGS,
   integrations: DEFAULT_INTEGRATION_SETTINGS,
 };
+
+// Multi-Timezone Clock Types
+export interface TimezoneConfig {
+  id: string;
+  timezone: string;      // IANA timezone (e.g., "Europe/London")
+  label: string;         // Display name (e.g., "London")
+  apiArea: string;       // WorldTimeAPI area (e.g., "Europe")
+  apiLocation: string;   // WorldTimeAPI location (e.g., "London")
+  isPrimary?: boolean;   // Whether this is the primary/main clock
+}
+
+export interface TimezoneData {
+  timezone: string;
+  datetime: string;       // ISO datetime string from API
+  utcOffset: string;      // e.g., "+00:00"
+  abbreviation: string;   // e.g., "GMT", "EST"
+  dayOfWeek: number;
+  unixtime: number;
+  cachedAt: number;       // Unix timestamp when cached
+}
+
+export interface WorldTimeAPIResponse {
+  abbreviation: string;
+  client_ip: string;
+  datetime: string;
+  day_of_week: number;
+  day_of_year: number;
+  dst: boolean;
+  dst_from: string | null;
+  dst_offset: number;
+  dst_until: string | null;
+  raw_offset: number;
+  timezone: string;
+  unixtime: number;
+  utc_datetime: string;
+  utc_offset: string;
+  week_number: number;
+}
+
+export interface ClockState {
+  hours: number;
+  minutes: number;
+  seconds: number;
+}
+
+// Default timezone configurations for the clock card
+export const DEFAULT_TIMEZONE_CONFIGS: TimezoneConfig[] = [
+  {
+    id: 'london',
+    timezone: 'Europe/London',
+    label: 'London',
+    apiArea: 'Europe',
+    apiLocation: 'London',
+    isPrimary: true,
+  },
+  {
+    id: 'new-york',
+    timezone: 'America/New_York',
+    label: 'New York',
+    apiArea: 'America',
+    apiLocation: 'New_York',
+  },
+  {
+    id: 'paris',
+    timezone: 'Europe/Paris',
+    label: 'Paris (CET)',
+    apiArea: 'Europe',
+    apiLocation: 'Paris',
+  },
+  {
+    id: 'kolkata',
+    timezone: 'Asia/Kolkata',
+    label: 'India',
+    apiArea: 'Asia',
+    apiLocation: 'Kolkata',
+  },
+  {
+    id: 'sydney',
+    timezone: 'Australia/Sydney',
+    label: 'Sydney',
+    apiArea: 'Australia',
+    apiLocation: 'Sydney',
+  },
+];
