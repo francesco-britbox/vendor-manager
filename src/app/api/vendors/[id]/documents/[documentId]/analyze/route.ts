@@ -7,6 +7,7 @@
  */
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import {
@@ -14,14 +15,14 @@ import {
   requireWritePermission,
   isErrorResponse,
 } from '@/lib/api-permissions';
-import {
-  analyzeVendorDocument,
-  getDocumentAnalysis,
-  deleteDocumentAnalysis,
-} from '@/lib/vendor-document-analyzer';
 import { getDocumentById, validateDocumentId } from '@/lib/vendor-documents';
 import { validateVendorId } from '@/lib/vendors';
 import type { ApiResponse, VendorDocumentAnalysis, AIProvider } from '@/types';
+
+// Dynamic import to avoid build-time evaluation of pdf-parse/canvas
+const getVendorDocumentAnalyzer = async () => {
+  return await import('@/lib/vendor-document-analyzer');
+};
 
 /**
  * POST - Trigger AI analysis
@@ -88,7 +89,8 @@ export async function POST(
       // No body or invalid JSON is fine
     }
 
-    // Run analysis
+    // Run analysis (dynamic import to avoid build-time issues)
+    const { analyzeVendorDocument } = await getVendorDocumentAnalyzer();
     const result = await analyzeVendorDocument(documentId, {
       force,
       provider,
@@ -181,7 +183,8 @@ export async function GET(
       );
     }
 
-    // Get existing analysis
+    // Get existing analysis (dynamic import to avoid build-time issues)
+    const { getDocumentAnalysis } = await getVendorDocumentAnalyzer();
     const analysis = await getDocumentAnalysis(documentId);
 
     if (!analysis) {
@@ -261,7 +264,8 @@ export async function DELETE(
       );
     }
 
-    // Delete analysis
+    // Delete analysis (dynamic import to avoid build-time issues)
+    const { deleteDocumentAnalysis } = await getVendorDocumentAnalyzer();
     const deleted = await deleteDocumentAnalysis(documentId);
 
     if (!deleted) {

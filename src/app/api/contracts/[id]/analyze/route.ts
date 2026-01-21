@@ -8,6 +8,7 @@
 
 // Force dynamic rendering to avoid build-time issues with pdf-parse
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 import { NextResponse } from 'next/server';
 import {
@@ -15,15 +16,13 @@ import {
   requireViewPermission,
   isErrorResponse,
 } from '@/lib/api-permissions';
-import {
-  analyzeContractDocument,
-  getContractAnalysis,
-  deleteContractAnalysis,
-  getAnalysisStatus,
-  type ContractAnalysisResult,
-} from '@/lib/contract-analyzer';
 import { validateContractId } from '@/lib/contracts';
 import type { ApiResponse, ContractAnalysis } from '@/types';
+
+// Dynamic import to avoid build-time evaluation of pdf-parse/canvas
+const getContractAnalyzer = async () => {
+  return await import('@/lib/contract-analyzer');
+};
 
 /**
  * Response type for analysis endpoint
@@ -75,8 +74,9 @@ export async function POST(
       // No body or invalid JSON is fine
     }
 
-    // Run analysis
-    const result: ContractAnalysisResult = await analyzeContractDocument(id, { force });
+    // Run analysis (dynamic import to avoid build-time issues)
+    const { analyzeContractDocument } = await getContractAnalyzer();
+    const result = await analyzeContractDocument(id, { force });
 
     if (!result.success || !result.analysis) {
       return NextResponse.json<ApiResponse<null>>(
@@ -137,6 +137,9 @@ export async function GET(
         { status: 400 }
       );
     }
+
+    // Dynamic import to avoid build-time issues
+    const { getAnalysisStatus, getContractAnalysis } = await getContractAnalyzer();
 
     // Check URL for status request
     const url = new URL(request.url);
@@ -205,7 +208,8 @@ export async function DELETE(
       );
     }
 
-    // Delete analysis
+    // Delete analysis (dynamic import to avoid build-time issues)
+    const { deleteContractAnalysis } = await getContractAnalyzer();
     const deleted = await deleteContractAnalysis(id);
 
     if (!deleted) {
