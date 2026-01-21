@@ -1,8 +1,19 @@
-# Build stage
-FROM node:18-alpine AS builder
+# Build stage - use Debian-based image for Prisma/OpenSSL compatibility
+FROM node:18-bookworm-slim AS builder
 
-# Install build dependencies for canvas/pdf-parse
-RUN apk add --no-cache python3 make g++ pkgconfig cairo-dev pango-dev jpeg-dev giflib-dev
+# Install build dependencies for canvas/pdf-parse and OpenSSL
+RUN apt-get update && apt-get install -y \
+    python3 \
+    make \
+    g++ \
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
+    libjpeg-dev \
+    libgif-dev \
+    openssl \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
