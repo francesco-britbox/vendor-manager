@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Trash2, Edit, Eye, MapPin, Building2 } from 'lucide-react';
 import type { Vendor } from '@/types';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface VendorTableProps {
   vendors: Vendor[];
@@ -136,16 +137,18 @@ export function VendorTable({
                     </Button>
                   )}
                   {onDelete && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onDelete(vendor.id)}
-                      disabled={isDeleting === vendor.id}
-                      data-testid={`delete-vendor-${vendor.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
+                    <ComponentGuard componentKey="vendor-delete">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(vendor.id)}
+                        disabled={isDeleting === vendor.id}
+                        data-testid={`delete-vendor-${vendor.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </ComponentGuard>
                   )}
                 </div>
               </TableCell>

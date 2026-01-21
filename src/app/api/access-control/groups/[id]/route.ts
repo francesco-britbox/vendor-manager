@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminPermission, isErrorResponse } from '@/lib/api-permissions';
+import { checkResourcePermission } from '@/lib/rbac';
 import type { ApiResponse, GroupWithCounts } from '@/types';
 
 interface RouteParams {
@@ -186,6 +187,21 @@ export async function PUT(request: Request, { params }: RouteParams) {
 export async function DELETE(request: Request, { params }: RouteParams) {
   const authResult = await requireAdminPermission();
   if (isErrorResponse(authResult)) return authResult;
+
+  // Check RBAC permission for delete operation
+  const deletePermission = await checkResourcePermission(
+    authResult.user.id,
+    'component:group-delete'
+  );
+  if (!deletePermission.allowed) {
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        success: false,
+        error: 'You do not have permission to delete groups',
+      },
+      { status: 403 }
+    );
+  }
 
   try {
     const { id } = await params;

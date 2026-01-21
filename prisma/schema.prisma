@@ -167,17 +167,18 @@ model UserGroup {
 
 /// ProtectableResource model for registering pages and components that can have access control
 model ProtectableResource {
-  id          String   @id @default(cuid())
-  resourceKey String   @unique  // Unique identifier (e.g., "page:dashboard", "component:vendor-documents")
-  type        String   @db.VarChar(20) // 'page' or 'component'
-  name        String   // Human-readable name
-  description String?  @db.Text
-  parentKey   String?  // For components, the parent page's resourceKey
-  path        String?  // For pages, the route path (e.g., "/dashboard")
-  sortOrder   Int      @default(0) // For ordering in the UI
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String          @id @default(cuid())
+  resourceKey   String          @unique  // Unique identifier (e.g., "page:dashboard", "component:vendor-documents")
+  type          String          @db.VarChar(20) // 'page' or 'component'
+  name          String          // Human-readable name
+  description   String?         @db.Text
+  parentKey     String?         // For components, the parent page's resourceKey
+  path          String?         // For pages, the route path (e.g., "/dashboard")
+  sortOrder     Int             @default(0) // For ordering in the UI
+  isActive      Boolean         @default(true)
+  requiredLevel PermissionLevel @default(view) // Minimum permission level needed to access
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
 
   // Relationships
   permissions ResourcePermission[]

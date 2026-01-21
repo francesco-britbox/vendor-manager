@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Trash2, Pencil, Users, FileText } from 'lucide-react';
 import type { RoleWithUsage } from '@/lib/roles';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface RoleTableProps {
   roles: RoleWithUsage[];
@@ -107,21 +108,23 @@ export function RoleTable({
                     <Pencil className="h-4 w-4" />
                     <span className="sr-only">Edit</span>
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDelete(role.id)}
-                    disabled={isDeleting === role.id || role.teamMemberCount > 0 || role.rateCardCount > 0}
-                    title={
-                      role.teamMemberCount > 0 || role.rateCardCount > 0
-                        ? 'Cannot delete role in use'
-                        : 'Delete role'
-                    }
-                    data-testid={`delete-role-${role.id}`}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
+                  <ComponentGuard componentKey="role-delete">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDelete(role.id)}
+                      disabled={isDeleting === role.id || role.teamMemberCount > 0 || role.rateCardCount > 0}
+                      title={
+                        role.teamMemberCount > 0 || role.rateCardCount > 0
+                          ? 'Cannot delete role in use'
+                          : 'Delete role'
+                      }
+                      data-testid={`delete-role-${role.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </ComponentGuard>
                 </div>
               </TableCell>
             </TableRow>

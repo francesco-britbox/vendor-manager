@@ -19,6 +19,7 @@ import {
   requireWritePermission,
   isErrorResponse,
 } from '@/lib/api-permissions';
+import { checkResourcePermission } from '@/lib/rbac';
 import type { ApiResponse, Vendor } from '@/types';
 
 export async function GET(
@@ -162,6 +163,21 @@ export async function DELETE(
     const authResult = await requireWritePermission();
     if (isErrorResponse(authResult)) {
       return authResult;
+    }
+
+    // Check RBAC permission for delete operation
+    const deletePermission = await checkResourcePermission(
+      authResult.user.id,
+      'component:vendor-delete'
+    );
+    if (!deletePermission.allowed) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          error: 'You do not have permission to delete vendors',
+        },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

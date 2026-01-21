@@ -57,6 +57,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { UserForManagement, GroupWithCounts } from '@/types';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface UsersManagementProps {
   initialUsers?: UserForManagement[];
@@ -568,23 +569,25 @@ export function UsersManagement({ initialUsers = [], groups = [] }: UsersManagem
                               <p>Edit user</p>
                             </TooltipContent>
                           </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setUserToDelete(user);
-                                  setDeleteDialogOpen(true);
-                                }}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Delete user</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          <ComponentGuard componentKey="user-delete">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setUserToDelete(user);
+                                    setDeleteDialogOpen(true);
+                                  }}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Delete user</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </ComponentGuard>
                         </div>
                     </TableCell>
                   </TableRow>

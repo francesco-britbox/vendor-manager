@@ -6,6 +6,7 @@
  * Query parameters:
  * - dateFrom: Start date for filtering (ISO string)
  * - dateTo: End date for filtering (ISO string)
+ * - vendorId: Filter by specific vendor ID (optional)
  */
 
 import { NextResponse } from 'next/server';
@@ -106,29 +107,217 @@ export async function GET(request: Request) {
       return authResult;
     }
 
-    // Parse query parameters for date filtering
+    // Parse query parameters for date and vendor filtering
     const { searchParams } = new URL(request.url);
     const dateFromStr = searchParams.get('dateFrom');
     const dateToStr = searchParams.get('dateTo');
+    const vendorIdStr = searchParams.get('vendorId');
 
     const dateFrom = dateFromStr ? new Date(dateFromStr) : undefined;
     const dateTo = dateToStr ? new Date(dateToStr) : undefined;
+    const vendorId = vendorIdStr || undefined;
 
-    // Fetch all base stats in parallel
-    const [vendorStats, teamStats, contractStats, invoiceStats, expiringContractsData] = await Promise.all([
-      getVendorStats(),
-      getTeamMemberStats(),
-      getContractStats(),
-      getInvoiceStats(),
-      getExpiringContracts(30),
-    ]);
+    // Fetch stats - if vendor is filtered, compute vendor-specific stats
+    // Otherwise, use the global stats functions
+    let vendorStats;
+    let teamStats;
+    let contractStats;
+    let invoiceStats;
+    let expiringContractsData;
 
-    // Build invoice date filter for analytics
-    const invoiceDateFilter: { invoiceDate?: { gte?: Date; lte?: Date } } = {};
+    if (vendorId) {
+      // Vendor-filtered stats - compute inline
+      const [
+        vendorData,
+        teamMembers,
+        contracts,
+        invoices,
+        expiringContracts,
+      ] = await Promise.all([
+        // Vendor info
+        prisma.vendor.findUnique({
+          where: { id: vendorId },
+          select: { id: true, status: true },
+        }),
+        // Team members for this vendor
+        prisma.teamMember.groupBy({
+          by: ['status'],
+          where: { vendorId },
+          _count: { id: true },
+        }),
+        // Contracts for this vendor
+        prisma.contract.findMany({
+          where: { vendorId },
+          select: { status: true, value: true, endDate: true },
+        }),
+        // Invoices for this vendor (with date filter)
+        prisma.invoice.findMany({
+          where: {
+            vendorId,
+            ...(dateFrom || dateTo ? {
+              invoiceDate: {
+                ...(dateFrom && { gte: dateFrom }),
+                ...(dateTo && { lte: dateTo }),
+              },
+            } : {}),
+          },
+          select: {
+            status: true,
+            amount: true,
+            expectedAmount: true,
+            toleranceThreshold: true,
+          },
+        }),
+        // Expiring contracts for this vendor
+        prisma.contract.findMany({
+          where: {
+            vendorId,
+            status: 'active',
+            endDate: {
+              gte: new Date(),
+              lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            },
+          },
+          include: {
+            vendor: { select: { name: true } },
+          },
+        }),
+      ]);
+
+      // Process vendor stats
+      vendorStats = {
+        totalVendors: vendorData ? 1 : 0,
+        activeVendors: vendorData?.status === 'active' ? 1 : 0,
+        inactiveVendors: vendorData?.status === 'inactive' ? 1 : 0,
+      };
+
+      // Process team stats
+      const teamStatusMap = new Map(teamMembers.map(t => [t.status, t._count.id]));
+      teamStats = {
+        totalTeamMembers: teamMembers.reduce((sum, t) => sum + t._count.id, 0),
+        activeTeamMembers: teamStatusMap.get('active') || 0,
+        inactiveTeamMembers: teamStatusMap.get('inactive') || 0,
+        onboardingTeamMembers: teamStatusMap.get('onboarding') || 0,
+        offboardedTeamMembers: teamStatusMap.get('offboarded') || 0,
+      };
+
+      // Process contract stats
+      const now = new Date();
+      const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      let totalContractValue = 0;
+      let expiringWithin30Days = 0;
+
+      const contractStatusCounts = { draft: 0, active: 0, expired: 0, terminated: 0 };
+      for (const contract of contracts) {
+        if (contract.status in contractStatusCounts) {
+          contractStatusCounts[contract.status as keyof typeof contractStatusCounts]++;
+        }
+        const value = typeof contract.value === 'number' ? contract.value : (contract.value as Decimal).toNumber();
+        totalContractValue += value;
+        if (contract.status === 'active' && contract.endDate && contract.endDate <= thirtyDaysFromNow && contract.endDate >= now) {
+          expiringWithin30Days++;
+        }
+      }
+
+      contractStats = {
+        totalContracts: contracts.length,
+        draftContracts: contractStatusCounts.draft,
+        activeContracts: contractStatusCounts.active,
+        expiredContracts: contractStatusCounts.expired,
+        terminatedContracts: contractStatusCounts.terminated,
+        expiringWithin30Days,
+        totalValue: totalContractValue,
+      };
+
+      // Process invoice stats
+      let totalAmount = 0;
+      let totalExpectedAmount = 0;
+      let invoicesExceedingTolerance = 0;
+      const invoiceStatusCounts = { pending: 0, validated: 0, disputed: 0, paid: 0 };
+
+      for (const invoice of invoices) {
+        if (invoice.status in invoiceStatusCounts) {
+          invoiceStatusCounts[invoice.status as keyof typeof invoiceStatusCounts]++;
+        }
+        const amount = typeof invoice.amount === 'number' ? invoice.amount : (invoice.amount as Decimal).toNumber();
+        totalAmount += amount;
+
+        if (invoice.expectedAmount) {
+          const expected = typeof invoice.expectedAmount === 'number' ? invoice.expectedAmount : (invoice.expectedAmount as Decimal).toNumber();
+          totalExpectedAmount += expected;
+
+          const tolerance = invoice.toleranceThreshold
+            ? (typeof invoice.toleranceThreshold === 'number' ? invoice.toleranceThreshold : (invoice.toleranceThreshold as Decimal).toNumber())
+            : 5;
+
+          const discrepancyPercent = expected > 0 ? Math.abs((amount - expected) / expected) * 100 : 0;
+          if (discrepancyPercent > tolerance) {
+            invoicesExceedingTolerance++;
+          }
+        }
+      }
+
+      invoiceStats = {
+        totalInvoices: invoices.length,
+        pendingInvoices: invoiceStatusCounts.pending,
+        validatedInvoices: invoiceStatusCounts.validated,
+        disputedInvoices: invoiceStatusCounts.disputed,
+        paidInvoices: invoiceStatusCounts.paid,
+        totalAmount,
+        totalExpectedAmount,
+        invoicesExceedingTolerance,
+      };
+
+      // Process expiring contracts
+      expiringContractsData = expiringContracts.map(c => ({
+        id: c.id,
+        title: c.title,
+        vendor: { name: c.vendor.name },
+        endDate: c.endDate,
+        daysUntilExpiration: Math.ceil((c.endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)),
+        value: typeof c.value === 'number' ? c.value : (c.value as Decimal).toNumber(),
+        currency: c.currency,
+      }));
+    } else {
+      // No vendor filter - use global stats functions
+      [vendorStats, teamStats, contractStats, invoiceStats, expiringContractsData] = await Promise.all([
+        getVendorStats(),
+        getTeamMemberStats(),
+        getContractStats(),
+        getInvoiceStats(),
+        getExpiringContracts(30),
+      ]);
+    }
+
+    // Build invoice filter for analytics (date + vendor)
+    const invoiceFilter: {
+      invoiceDate?: { gte?: Date; lte?: Date };
+      vendorId?: string;
+    } = {};
     if (dateFrom || dateTo) {
-      invoiceDateFilter.invoiceDate = {};
-      if (dateFrom) invoiceDateFilter.invoiceDate.gte = dateFrom;
-      if (dateTo) invoiceDateFilter.invoiceDate.lte = dateTo;
+      invoiceFilter.invoiceDate = {};
+      if (dateFrom) invoiceFilter.invoiceDate.gte = dateFrom;
+      if (dateTo) invoiceFilter.invoiceDate.lte = dateTo;
+    }
+    if (vendorId) {
+      invoiceFilter.vendorId = vendorId;
+    }
+
+    // Build team member filter for vendor
+    const teamMemberFilter: {
+      status: 'active';
+      vendorId?: string;
+    } = { status: 'active' };
+    if (vendorId) {
+      teamMemberFilter.vendorId = vendorId;
+    }
+
+    // Build contract filter for vendor
+    const contractFilter: {
+      vendorId?: string;
+    } = {};
+    if (vendorId) {
+      contractFilter.vendorId = vendorId;
     }
 
     // Get spend analytics
@@ -136,7 +325,7 @@ export async function GET(request: Request) {
       // Spend by vendor
       prisma.invoice.groupBy({
         by: ['vendorId'],
-        where: invoiceDateFilter,
+        where: invoiceFilter,
         _sum: { amount: true },
         _count: { id: true },
       }).then(async (results) => {
@@ -157,7 +346,7 @@ export async function GET(request: Request) {
 
       // Spend over time (by month)
       prisma.invoice.findMany({
-        where: invoiceDateFilter,
+        where: invoiceFilter,
         select: { invoiceDate: true, amount: true },
       }).then((invoices) => {
         const monthlySpend = new Map<string, { totalSpend: number; invoiceCount: number }>();
@@ -192,9 +381,9 @@ export async function GET(request: Request) {
           });
       }),
 
-      // Spend by role (via team members)
+      // Spend by role (via team members) - filtered by vendor if specified
       prisma.teamMember.findMany({
-        where: { status: 'active' },
+        where: teamMemberFilter,
         select: {
           roleId: true,
           dailyRate: true,
@@ -234,7 +423,7 @@ export async function GET(request: Request) {
       // Spend by currency
       prisma.invoice.groupBy({
         by: ['currency'],
-        where: invoiceDateFilter,
+        where: invoiceFilter,
         _sum: { amount: true },
         _count: { id: true },
       }).then((results) => {
@@ -251,9 +440,9 @@ export async function GET(request: Request) {
       id: c.id,
       title: c.title,
       vendorName: c.vendor.name,
-      endDate: c.endDate.toISOString(),
+      endDate: c.endDate instanceof Date ? c.endDate.toISOString() : String(c.endDate),
       daysUntilExpiration: c.daysUntilExpiration || 0,
-      value: c.value,
+      value: typeof c.value === 'number' ? c.value : Number(c.value),
       currency: c.currency,
     }));
 

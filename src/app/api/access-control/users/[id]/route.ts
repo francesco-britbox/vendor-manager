@@ -9,7 +9,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdminPermission, isErrorResponse } from '@/lib/api-permissions';
-import { canDemoteSuperUser, getSuperUserCount } from '@/lib/rbac';
+import { canDemoteSuperUser, getSuperUserCount, checkResourcePermission } from '@/lib/rbac';
 import bcryptjs from 'bcryptjs';
 import type { ApiResponse, UserForManagement } from '@/types';
 
@@ -314,6 +314,21 @@ export async function PUT(request: Request, { params }: RouteParams) {
 export async function DELETE(request: Request, { params }: RouteParams) {
   const authResult = await requireAdminPermission();
   if (isErrorResponse(authResult)) return authResult;
+
+  // Check RBAC permission for delete operation
+  const deletePermission = await checkResourcePermission(
+    authResult.user.id,
+    'component:user-delete'
+  );
+  if (!deletePermission.allowed) {
+    return NextResponse.json<ApiResponse<null>>(
+      {
+        success: false,
+        error: 'You do not have permission to delete users',
+      },
+      { status: 403 }
+    );
+  }
 
   try {
     const { id } = await params;

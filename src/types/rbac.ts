@@ -5,7 +5,7 @@
  * that enables granular access control to pages and components.
  */
 
-import type { BaseEntity } from './index';
+import type { BaseEntity, PermissionLevel } from './index';
 
 // ============================================================================
 // RESOURCE TYPES
@@ -24,6 +24,7 @@ export interface ProtectableResource extends BaseEntity {
   path?: string; // For pages, the route path
   sortOrder: number;
   isActive: boolean;
+  requiredLevel?: PermissionLevel; // Minimum permission level required to access this resource
   permissions?: ResourcePermission[];
 }
 
@@ -215,6 +216,7 @@ export interface StaticResourceDefinition {
   parentKey?: string;
   path?: string;
   sortOrder: number;
+  requiredLevel?: PermissionLevel; // Minimum permission level required (defaults to 'view')
 }
 
 /** Initial protectable pages */
@@ -326,6 +328,7 @@ export const PROTECTABLE_PAGES: StaticResourceDefinition[] = [
     path: '/settings/configuration',
     parentKey: 'page:settings',
     sortOrder: 13,
+    requiredLevel: 'admin',
   },
   {
     resourceKey: 'page:settings-access-control',
@@ -335,6 +338,17 @@ export const PROTECTABLE_PAGES: StaticResourceDefinition[] = [
     path: '/settings/access-control',
     parentKey: 'page:settings',
     sortOrder: 14,
+    requiredLevel: 'admin',
+  },
+  {
+    resourceKey: 'page:settings-email',
+    type: 'page',
+    name: 'Settings - Email',
+    description: 'SMTP email configuration',
+    path: '/settings/email',
+    parentKey: 'page:settings',
+    sortOrder: 15,
+    requiredLevel: 'admin',
   },
 ];
 
@@ -363,6 +377,95 @@ export const PROTECTABLE_COMPONENTS: StaticResourceDefinition[] = [
     description: 'Tags section on vendor detail page',
     parentKey: 'page:vendors',
     sortOrder: 3,
+  },
+  // Delete operation components - require specific group membership
+  {
+    resourceKey: 'component:vendor-delete',
+    type: 'component',
+    name: 'Delete Vendors',
+    description: 'Ability to delete vendor records',
+    parentKey: 'page:vendors',
+    sortOrder: 10,
+  },
+  {
+    resourceKey: 'component:team-member-delete',
+    type: 'component',
+    name: 'Delete Team Members',
+    description: 'Ability to delete team member records',
+    parentKey: 'page:team-members',
+    sortOrder: 11,
+  },
+  {
+    resourceKey: 'component:contract-delete',
+    type: 'component',
+    name: 'Delete Contracts',
+    description: 'Ability to delete contract records',
+    parentKey: 'page:contracts',
+    sortOrder: 12,
+  },
+  {
+    resourceKey: 'component:invoice-delete',
+    type: 'component',
+    name: 'Delete Invoices',
+    description: 'Ability to delete invoice records',
+    parentKey: 'page:invoices',
+    sortOrder: 13,
+  },
+  {
+    resourceKey: 'component:rate-card-delete',
+    type: 'component',
+    name: 'Delete Rate Cards',
+    description: 'Ability to delete rate card records',
+    parentKey: 'page:settings-rate-cards',
+    sortOrder: 14,
+  },
+  {
+    resourceKey: 'component:role-delete',
+    type: 'component',
+    name: 'Delete Roles',
+    description: 'Ability to delete job role records',
+    parentKey: 'page:settings-roles',
+    sortOrder: 15,
+  },
+  {
+    resourceKey: 'component:exchange-rate-delete',
+    type: 'component',
+    name: 'Delete Exchange Rates',
+    description: 'Ability to delete exchange rate records',
+    parentKey: 'page:settings-exchange-rates',
+    sortOrder: 16,
+  },
+  {
+    resourceKey: 'component:document-delete',
+    type: 'component',
+    name: 'Delete Documents',
+    description: 'Ability to delete vendor documents',
+    parentKey: 'page:vendors',
+    sortOrder: 17,
+  },
+  {
+    resourceKey: 'component:user-delete',
+    type: 'component',
+    name: 'Delete Users',
+    description: 'Ability to delete user accounts',
+    parentKey: 'page:settings-access-control',
+    sortOrder: 18,
+  },
+  {
+    resourceKey: 'component:group-delete',
+    type: 'component',
+    name: 'Delete Groups',
+    description: 'Ability to delete permission groups',
+    parentKey: 'page:settings-access-control',
+    sortOrder: 19,
+  },
+  {
+    resourceKey: 'component:tag-delete',
+    type: 'component',
+    name: 'Delete Tags',
+    description: 'Ability to delete tags',
+    parentKey: 'page:vendors',
+    sortOrder: 20,
   },
 ];
 

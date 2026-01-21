@@ -39,6 +39,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import type { GroupWithCounts } from '@/types';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface GroupsManagementProps {
   initialGroups?: GroupWithCounts[];
@@ -301,18 +302,20 @@ export function GroupsManagement({ initialGroups = [] }: GroupsManagementProps) 
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setGroupToDelete(group);
-                            setDeleteDialogOpen(true);
-                          }}
-                          disabled={group.isSystem}
-                          title={group.isSystem ? 'System groups cannot be deleted' : undefined}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <ComponentGuard componentKey="group-delete">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setGroupToDelete(group);
+                              setDeleteDialogOpen(true);
+                            }}
+                            disabled={group.isSystem}
+                            title={group.isSystem ? 'System groups cannot be deleted' : undefined}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </ComponentGuard>
                       </div>
                     </TableCell>
                   </TableRow>

@@ -39,6 +39,7 @@ export async function syncProtectableResources(
         path: resource.path || null,
         sortOrder: resource.sortOrder,
         isActive: true,
+        requiredLevel: resource.requiredLevel || 'view',
       },
       update: {
         type: resource.type,
@@ -47,6 +48,7 @@ export async function syncProtectableResources(
         parentKey: resource.parentKey || null,
         path: resource.path || null,
         sortOrder: resource.sortOrder,
+        requiredLevel: resource.requiredLevel || 'view',
       },
     });
   }
@@ -78,6 +80,7 @@ export async function getProtectableResources(): Promise<ProtectableResource[]> 
     path: r.path || undefined,
     sortOrder: r.sortOrder,
     isActive: r.isActive,
+    requiredLevel: r.requiredLevel,
     createdAt: r.createdAt,
     updatedAt: r.updatedAt,
     permissions: r.permissions.map((p) => ({
@@ -128,6 +131,7 @@ export async function getResourceByKey(
     path: resource.path || undefined,
     sortOrder: resource.sortOrder,
     isActive: resource.isActive,
+    requiredLevel: resource.requiredLevel,
     createdAt: resource.createdAt,
     updatedAt: resource.updatedAt,
     permissions: resource.permissions.map((p) => ({
@@ -193,8 +197,18 @@ export async function checkResourcePermission(
     },
   });
 
-  // If resource doesn't exist in DB, allow access (not a protected resource)
+  // If resource doesn't exist in DB
   if (!resource) {
+    // Components are denied by default (security-first approach)
+    if (resourceKey.startsWith('component:')) {
+      return {
+        allowed: false,
+        reason: 'Component not configured - access denied by default',
+        resourceKey,
+        resourceType: 'component',
+      };
+    }
+    // Pages allow access if not explicitly protected
     return {
       allowed: true,
       resourceKey,
@@ -202,8 +216,18 @@ export async function checkResourcePermission(
     };
   }
 
-  // If resource has no permissions assigned, allow all authenticated users
+  // If resource has no permissions assigned
   if (resource.permissions.length === 0) {
+    // Components with no groups assigned are denied (must explicitly allow)
+    if (resourceKey.startsWith('component:')) {
+      return {
+        allowed: false,
+        reason: 'No groups assigned - access denied by default',
+        resourceKey,
+        resourceType: 'component',
+      };
+    }
+    // Pages with no groups are accessible to all authenticated users
     return {
       allowed: true,
       resourceKey,
@@ -304,8 +328,13 @@ export async function getUserEffectivePermissions(
   const accessibleResources: string[] = [];
 
   for (const resource of allResources) {
-    // No permissions = accessible to all
+    // No permissions assigned
     if (resource.permissions.length === 0) {
+      // Components with no groups are denied by default (security-first)
+      if (resource.resourceKey.startsWith('component:')) {
+        continue;
+      }
+      // Pages with no groups are accessible to all authenticated users
       accessibleResources.push(resource.resourceKey);
       continue;
     }

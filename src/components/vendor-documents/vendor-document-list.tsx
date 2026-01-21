@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type { VendorDocument, DocumentType } from '@/types';
 import { DOCUMENT_TYPE_LABELS } from '@/types';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface VendorDocumentListProps {
   vendorId: string;
@@ -351,18 +352,20 @@ export function VendorDocumentList({
                           {doc.aiAnalysis ? 'Re-analyze' : 'Analyze with AI'}
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(doc.id)}
-                        disabled={isDeleting}
-                        className="text-destructive focus:text-destructive"
-                      >
-                        {isDeleting ? (
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        ) : (
-                          <Trash2 className="h-4 w-4 mr-2" />
-                        )}
-                        Delete
-                      </DropdownMenuItem>
+                      <ComponentGuard componentKey="document-delete">
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(doc.id)}
+                          disabled={isDeleting}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
+                          Delete
+                        </DropdownMenuItem>
+                      </ComponentGuard>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

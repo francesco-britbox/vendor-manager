@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import {
   Building2,
   Users,
@@ -17,8 +18,19 @@ import { SpendByRoleChart } from './spend-by-role-chart';
 import { SpendByCurrencyChart } from './spend-by-currency-chart';
 import { ContractExpirationWidget } from './contract-expiration-widget';
 import { InvoiceStatusChart } from './invoice-status-chart';
-import { DateRangeFilter } from './date-range-filter';
+import { DateRangeFilter, type Vendor } from './date-range-filter';
 import type { AnalyticsData } from '@/app/api/analytics/route';
+
+// Helper to get current month date range
+function getCurrentMonthDateRange() {
+  const now = new Date();
+  const from = new Date(now.getFullYear(), now.getMonth(), 1);
+  const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return {
+    dateFrom: from.toISOString().split('T')[0],
+    dateTo: to.toISOString().split('T')[0],
+  };
+}
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('en-GB', {
@@ -30,15 +42,68 @@ const formatCurrency = (value: number) => {
 };
 
 export function AnalyticsDashboard() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Date range filter state
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  // Vendor list for filter
+  const [vendors, setVendors] = useState<Vendor[]>([]);
 
-  const fetchAnalytics = useCallback(async (fromDate?: string, toDate?: string) => {
+  // Initialize filter state from URL params or defaults (current month)
+  const getInitialDateRange = () => {
+    const urlDateFrom = searchParams.get('dateFrom');
+    const urlDateTo = searchParams.get('dateTo');
+
+    // If URL has params, use them
+    if (urlDateFrom || urlDateTo) {
+      return {
+        dateFrom: urlDateFrom || '',
+        dateTo: urlDateTo || '',
+      };
+    }
+
+    // Otherwise, default to current month
+    return getCurrentMonthDateRange();
+  };
+
+  const initialDateRange = getInitialDateRange();
+  const [dateFrom, setDateFrom] = useState(initialDateRange.dateFrom);
+  const [dateTo, setDateTo] = useState(initialDateRange.dateTo);
+  const [selectedVendorId, setSelectedVendorId] = useState(searchParams.get('vendorId') || '');
+
+  // Fetch vendors for filter dropdown
+  useEffect(() => {
+    async function fetchVendors() {
+      try {
+        const response = await fetch('/api/vendors');
+        const result = await response.json();
+        if (result.success) {
+          setVendors(result.data.vendors || result.data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching vendors:', err);
+      }
+    }
+    fetchVendors();
+  }, []);
+
+  // Update URL with current filter state
+  const updateURLParams = useCallback((fromDate: string, toDate: string, vendorId: string) => {
+    const params = new URLSearchParams();
+    if (fromDate) params.set('dateFrom', fromDate);
+    if (toDate) params.set('dateTo', toDate);
+    if (vendorId) params.set('vendorId', vendorId);
+
+    const queryString = params.toString();
+    const newUrl = queryString ? `${pathname}?${queryString}` : pathname;
+    router.replace(newUrl, { scroll: false });
+  }, [pathname, router]);
+
+  const fetchAnalytics = useCallback(async (fromDate?: string, toDate?: string, vendorId?: string) => {
     setIsLoading(true);
     setError(null);
 
@@ -46,6 +111,7 @@ export function AnalyticsDashboard() {
       const params = new URLSearchParams();
       if (fromDate) params.set('dateFrom', fromDate);
       if (toDate) params.set('dateTo', toDate);
+      if (vendorId) params.set('vendorId', vendorId);
 
       const url = `/api/analytics${params.toString() ? `?${params.toString()}` : ''}`;
       const response = await fetch(url);
@@ -63,18 +129,28 @@ export function AnalyticsDashboard() {
     }
   }, []);
 
+  // Initial data fetch with default date range (current month)
   useEffect(() => {
-    fetchAnalytics();
-  }, [fetchAnalytics]);
+    fetchAnalytics(dateFrom, dateTo, selectedVendorId);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleApplyFilter = () => {
-    fetchAnalytics(dateFrom, dateTo);
+    fetchAnalytics(dateFrom, dateTo, selectedVendorId);
+    updateURLParams(dateFrom, dateTo, selectedVendorId);
   };
 
   const handleClearFilter = () => {
-    setDateFrom('');
-    setDateTo('');
-    fetchAnalytics();
+    // Reset to current month defaults
+    const { dateFrom: defaultFrom, dateTo: defaultTo } = getCurrentMonthDateRange();
+    setDateFrom(defaultFrom);
+    setDateTo(defaultTo);
+    setSelectedVendorId('');
+    fetchAnalytics(defaultFrom, defaultTo, '');
+    updateURLParams(defaultFrom, defaultTo, '');
+  };
+
+  const handleVendorChange = (vendorId: string) => {
+    setSelectedVendorId(vendorId);
   };
 
   if (isLoading && !data) {
@@ -88,6 +164,9 @@ export function AnalyticsDashboard() {
           onApply={handleApplyFilter}
           onClear={handleClearFilter}
           isLoading={true}
+          vendors={vendors}
+          selectedVendorId={selectedVendorId}
+          onVendorChange={handleVendorChange}
         />
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
@@ -125,7 +204,7 @@ export function AnalyticsDashboard() {
 
   return (
     <div className="space-y-6" data-testid="analytics-dashboard">
-      {/* Date Range Filter */}
+      {/* Date Range & Vendor Filter */}
       <DateRangeFilter
         dateFrom={dateFrom}
         dateTo={dateTo}
@@ -134,6 +213,9 @@ export function AnalyticsDashboard() {
         onApply={handleApplyFilter}
         onClear={handleClearFilter}
         isLoading={isLoading}
+        vendors={vendors}
+        selectedVendorId={selectedVendorId}
+        onVendorChange={handleVendorChange}
       />
 
       {/* Summary Stats */}

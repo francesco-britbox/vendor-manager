@@ -13,6 +13,7 @@ import {
   requireWritePermission,
   isErrorResponse,
 } from '@/lib/api-permissions';
+import { checkResourcePermission } from '@/lib/rbac';
 import {
   deleteFileFromS3,
   isS3Configured,
@@ -215,6 +216,21 @@ export async function DELETE(
     const authResult = await requireWritePermission();
     if (isErrorResponse(authResult)) {
       return authResult;
+    }
+
+    // Check RBAC permission for delete operation
+    const deletePermission = await checkResourcePermission(
+      authResult.user.id,
+      'component:document-delete'
+    );
+    if (!deletePermission.allowed) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          error: 'You do not have permission to delete documents',
+        },
+        { status: 403 }
+      );
     }
 
     const { id, documentId } = await params;

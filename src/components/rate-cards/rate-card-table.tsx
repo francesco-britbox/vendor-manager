@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trash2, Pencil, Building2, Briefcase, Calendar, History } from 'lucide-react';
 import { getCurrencySymbol } from '@/lib/currency/currencies';
 import type { RateCardWithDetails } from '@/lib/rate-cards';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface RateCardTableProps {
   rateCards: RateCardWithDetails[];
@@ -180,17 +181,19 @@ export function RateCardTable({
                       <span className="sr-only">View History</span>
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => onDelete(rateCard.id)}
-                    disabled={isDeleting === rateCard.id}
-                    title="Delete rate card"
-                    data-testid={`delete-rate-card-${rateCard.id}`}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                    <span className="sr-only">Delete</span>
-                  </Button>
+                  <ComponentGuard componentKey="rate-card-delete">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => onDelete(rateCard.id)}
+                      disabled={isDeleting === rateCard.id}
+                      title="Delete rate card"
+                      data-testid={`delete-rate-card-${rateCard.id}`}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <span className="sr-only">Delete</span>
+                    </Button>
+                  </ComponentGuard>
                 </div>
               </TableCell>
             </TableRow>

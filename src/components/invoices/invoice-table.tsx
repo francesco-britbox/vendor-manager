@@ -29,6 +29,7 @@ import {
   Calculator,
 } from 'lucide-react';
 import type { InvoiceWithVendor } from '@/lib/invoices';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface InvoiceTableProps {
   invoices: InvoiceWithVendor[];
@@ -270,15 +271,17 @@ export function InvoiceTable({
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => onDelete(invoice.id)}
-                        disabled={isCurrentDeleting}
-                        className="text-destructive focus:text-destructive"
-                        data-testid={`invoice-delete-${invoice.id}`}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        {isCurrentDeleting ? 'Deleting...' : 'Delete'}
-                      </DropdownMenuItem>
+                      <ComponentGuard componentKey="invoice-delete">
+                        <DropdownMenuItem
+                          onClick={() => onDelete(invoice.id)}
+                          disabled={isCurrentDeleting}
+                          className="text-destructive focus:text-destructive"
+                          data-testid={`invoice-delete-${invoice.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          {isCurrentDeleting ? 'Deleting...' : 'Delete'}
+                        </DropdownMenuItem>
+                      </ComponentGuard>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

@@ -12,6 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Trash2, Edit, Mail, Building2, Users } from 'lucide-react';
 import type { TeamMember, TeamMemberStatus } from '@/types';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface TeamMemberWithRelations extends TeamMember {
   vendor?: {
@@ -199,16 +200,18 @@ export function TeamMemberTable({
                     </Button>
                   )}
                   {onDelete && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => onDelete(member.id)}
-                      disabled={isDeleting === member.id}
-                      data-testid={`delete-team-member-${member.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
+                    <ComponentGuard componentKey="team-member-delete">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => onDelete(member.id)}
+                        disabled={isDeleting === member.id}
+                        data-testid={`delete-team-member-${member.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                        <span className="sr-only">Delete</span>
+                      </Button>
+                    </ComponentGuard>
                   )}
                 </div>
               </TableCell>

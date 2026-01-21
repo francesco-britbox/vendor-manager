@@ -168,15 +168,17 @@ export function VendorDetail({ vendor: initialVendor }: VendorDetailProps) {
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={isLoading}
-            data-testid="delete-vendor-button"
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </Button>
+          <ComponentGuard componentKey="vendor-delete">
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isLoading}
+              data-testid="delete-vendor-button"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+          </ComponentGuard>
         </div>
       </div>
 

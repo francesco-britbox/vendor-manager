@@ -19,6 +19,7 @@ import {
   requireWritePermission,
   isErrorResponse,
 } from '@/lib/api-permissions';
+import { checkResourcePermission } from '@/lib/rbac';
 import type { ApiResponse, RateCard } from '@/types';
 
 export async function GET(
@@ -196,6 +197,21 @@ export async function DELETE(
     const authResult = await requireWritePermission();
     if (isErrorResponse(authResult)) {
       return authResult;
+    }
+
+    // Check RBAC permission for delete operation
+    const deletePermission = await checkResourcePermission(
+      authResult.user.id,
+      'component:rate-card-delete'
+    );
+    if (!deletePermission.allowed) {
+      return NextResponse.json<ApiResponse<null>>(
+        {
+          success: false,
+          error: 'You do not have permission to delete rate cards',
+        },
+        { status: 403 }
+      );
     }
 
     const { id } = await params;

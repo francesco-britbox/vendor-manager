@@ -22,6 +22,7 @@ interface ResourceDefinition {
   path?: string;
   parentKey?: string;
   sortOrder: number;
+  requiredLevel?: 'denied' | 'view' | 'write' | 'admin';
 }
 
 // Protectable pages
@@ -133,6 +134,7 @@ const PROTECTABLE_PAGES: ResourceDefinition[] = [
     path: '/settings/configuration',
     parentKey: 'page:settings',
     sortOrder: 13,
+    requiredLevel: 'admin',
   },
   {
     resourceKey: 'page:settings-access-control',
@@ -142,6 +144,17 @@ const PROTECTABLE_PAGES: ResourceDefinition[] = [
     path: '/settings/access-control',
     parentKey: 'page:settings',
     sortOrder: 14,
+    requiredLevel: 'admin',
+  },
+  {
+    resourceKey: 'page:settings-email',
+    type: 'page',
+    name: 'Settings - Email',
+    description: 'SMTP email configuration',
+    path: '/settings/email',
+    parentKey: 'page:settings',
+    sortOrder: 15,
+    requiredLevel: 'admin',
   },
   // Reporting pages
   {
@@ -189,6 +202,95 @@ const PROTECTABLE_COMPONENTS: ResourceDefinition[] = [
     parentKey: 'page:vendors',
     sortOrder: 3,
   },
+  // Delete operation components - require specific group membership
+  {
+    resourceKey: 'component:vendor-delete',
+    type: 'component',
+    name: 'Delete Vendors',
+    description: 'Ability to delete vendor records',
+    parentKey: 'page:vendors',
+    sortOrder: 10,
+  },
+  {
+    resourceKey: 'component:team-member-delete',
+    type: 'component',
+    name: 'Delete Team Members',
+    description: 'Ability to delete team member records',
+    parentKey: 'page:team-members',
+    sortOrder: 11,
+  },
+  {
+    resourceKey: 'component:contract-delete',
+    type: 'component',
+    name: 'Delete Contracts',
+    description: 'Ability to delete contract records',
+    parentKey: 'page:contracts',
+    sortOrder: 12,
+  },
+  {
+    resourceKey: 'component:invoice-delete',
+    type: 'component',
+    name: 'Delete Invoices',
+    description: 'Ability to delete invoice records',
+    parentKey: 'page:invoices',
+    sortOrder: 13,
+  },
+  {
+    resourceKey: 'component:rate-card-delete',
+    type: 'component',
+    name: 'Delete Rate Cards',
+    description: 'Ability to delete rate card records',
+    parentKey: 'page:settings-rate-cards',
+    sortOrder: 14,
+  },
+  {
+    resourceKey: 'component:role-delete',
+    type: 'component',
+    name: 'Delete Roles',
+    description: 'Ability to delete job role records',
+    parentKey: 'page:settings-roles',
+    sortOrder: 15,
+  },
+  {
+    resourceKey: 'component:exchange-rate-delete',
+    type: 'component',
+    name: 'Delete Exchange Rates',
+    description: 'Ability to delete exchange rate records',
+    parentKey: 'page:settings-exchange-rates',
+    sortOrder: 16,
+  },
+  {
+    resourceKey: 'component:document-delete',
+    type: 'component',
+    name: 'Delete Documents',
+    description: 'Ability to delete vendor documents',
+    parentKey: 'page:vendors',
+    sortOrder: 17,
+  },
+  {
+    resourceKey: 'component:user-delete',
+    type: 'component',
+    name: 'Delete Users',
+    description: 'Ability to delete user accounts',
+    parentKey: 'page:settings-access-control',
+    sortOrder: 18,
+  },
+  {
+    resourceKey: 'component:group-delete',
+    type: 'component',
+    name: 'Delete Groups',
+    description: 'Ability to delete permission groups',
+    parentKey: 'page:settings-access-control',
+    sortOrder: 19,
+  },
+  {
+    resourceKey: 'component:tag-delete',
+    type: 'component',
+    name: 'Delete Tags',
+    description: 'Ability to delete tags',
+    parentKey: 'page:vendors',
+    sortOrder: 20,
+  },
 ];
 
 async function main() {
@@ -211,6 +313,7 @@ async function main() {
         path: resource.path || null,
         sortOrder: resource.sortOrder,
         isActive: true,
+        requiredLevel: resource.requiredLevel || 'view',
       },
       update: {
         type: resource.type,
@@ -219,9 +322,10 @@ async function main() {
         parentKey: resource.parentKey || null,
         path: resource.path || null,
         sortOrder: resource.sortOrder,
+        requiredLevel: resource.requiredLevel || 'view',
       },
     });
-    console.log(`  - ${resource.name} (${resource.resourceKey})`);
+    console.log(`  - ${resource.name} (${resource.resourceKey})${resource.requiredLevel ? ` [${resource.requiredLevel}]` : ''}`);
   }
 
   // 2. Create Administrators group
@@ -263,8 +367,60 @@ async function main() {
     console.log('  - Administrators group assigned to Access Control page');
   }
 
-  // 3.1 Create Delivery Managers permission group
-  console.log('\n3.1. Creating Delivery Managers group...');
+  // Assign Administrators group to other admin-only pages
+  const adminOnlyPages = ['page:settings-configuration', 'page:settings-email'];
+  for (const pageKey of adminOnlyPages) {
+    const pageResource = await prisma.protectableResource.findUnique({
+      where: { resourceKey: pageKey },
+    });
+    if (pageResource) {
+      await prisma.resourcePermission.upsert({
+        where: {
+          resourceId_groupId: {
+            resourceId: pageResource.id,
+            groupId: adminGroup.id,
+          },
+        },
+        create: {
+          resourceId: pageResource.id,
+          groupId: adminGroup.id,
+        },
+        update: {},
+      });
+      console.log(`  - Administrators group assigned to ${pageResource.name}`);
+    }
+  }
+
+  // Assign Administrators group to all delete components
+  console.log('\n3.1. Assigning Administrators group to delete components...');
+  const deleteComponents = await prisma.protectableResource.findMany({
+    where: {
+      resourceKey: {
+        startsWith: 'component:',
+        endsWith: '-delete',
+      },
+    },
+  });
+
+  for (const component of deleteComponents) {
+    await prisma.resourcePermission.upsert({
+      where: {
+        resourceId_groupId: {
+          resourceId: component.id,
+          groupId: adminGroup.id,
+        },
+      },
+      create: {
+        resourceId: component.id,
+        groupId: adminGroup.id,
+      },
+      update: {},
+    });
+    console.log(`  - Administrators group assigned to ${component.name}`);
+  }
+
+  // 3.3 Create Delivery Managers permission group
+  console.log('\n3.3. Creating Delivery Managers group...');
 
   const deliveryManagerGroup = await prisma.permissionGroup.upsert({
     where: { name: 'Delivery Managers' },

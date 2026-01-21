@@ -10,6 +10,10 @@ import {
   ConversionError,
   RoundingMode,
 } from '@/lib/currency';
+import {
+  requireViewPermission,
+  isErrorResponse,
+} from '@/lib/api-permissions';
 import type { ApiResponse } from '@/types';
 
 interface ConvertRequest {
@@ -22,6 +26,12 @@ interface ConvertRequest {
 
 export async function POST(request: Request) {
   try {
+    // Check view permission
+    const authResult = await requireViewPermission();
+    if (isErrorResponse(authResult)) {
+      return authResult;
+    }
+
     const body: ConvertRequest = await request.json();
 
     // Validate required fields

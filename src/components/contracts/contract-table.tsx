@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import type { ContractStatus } from '@/types';
 import type { ContractWithVendor } from '@/lib/contracts';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface ContractTableProps {
   contracts: ContractWithVendor[];
@@ -275,16 +276,18 @@ export function ContractTable({
                       </Button>
                     )}
                     {onDelete && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => onDelete(contract.id)}
-                        disabled={isDeleting === contract.id}
-                        data-testid={`delete-contract-${contract.id}`}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                        <span className="sr-only">Delete</span>
-                      </Button>
+                      <ComponentGuard componentKey="contract-delete">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => onDelete(contract.id)}
+                          disabled={isDeleting === contract.id}
+                          data-testid={`delete-contract-${contract.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                          <span className="sr-only">Delete</span>
+                        </Button>
+                      </ComponentGuard>
                     )}
                   </div>
                 </TableCell>

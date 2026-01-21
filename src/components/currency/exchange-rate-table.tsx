@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Trash2, AlertTriangle, Clock } from 'lucide-react';
 import { formatCurrencyLabel } from '@/lib/currency';
 import type { ExchangeRateWithMeta } from '@/lib/currency';
+import { ComponentGuard } from '@/components/permissions/rbac-guard';
 
 interface ExchangeRateTableProps {
   rates: ExchangeRateWithMeta[];
@@ -109,16 +110,18 @@ export function ExchangeRateTable({
                 )}
               </TableCell>
               <TableCell>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => onDelete(rate.id)}
-                  disabled={isDeleting === rate.id}
-                  data-testid={`delete-rate-${rate.fromCurrency}-${rate.toCurrency}`}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                  <span className="sr-only">Delete</span>
-                </Button>
+                <ComponentGuard componentKey="exchange-rate-delete">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onDelete(rate.id)}
+                    disabled={isDeleting === rate.id}
+                    data-testid={`delete-rate-${rate.fromCurrency}-${rate.toCurrency}`}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <span className="sr-only">Delete</span>
+                  </Button>
+                </ComponentGuard>
               </TableCell>
             </TableRow>
           ))}
