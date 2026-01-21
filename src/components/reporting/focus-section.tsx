@@ -26,6 +26,7 @@ export function FocusSection({
 
   const handleAdd = useCallback(() => {
     const newItem: FocusItem = {
+      clientId: crypto.randomUUID(), // Stable ID for React key
       description: '',
       isCarriedOver: false,
       sortOrder: focusItems.length,
@@ -114,7 +115,7 @@ export function FocusSection({
         ) : (
           focusItems.map((item, index) => (
             <div
-              key={item.id || `new-${index}`}
+              key={item.clientId || item.id || `fallback-${index}`}
               draggable={!disabled}
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}

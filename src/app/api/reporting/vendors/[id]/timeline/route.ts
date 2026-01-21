@@ -113,6 +113,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     // Validate input
     const validation = validateTimelineMilestone(body);
     if (!validation.valid || !validation.data) {
+      console.error('Timeline validation failed:', validation.errors, 'Body:', body);
       return NextResponse.json<ApiResponse<null>>(
         {
           success: false,

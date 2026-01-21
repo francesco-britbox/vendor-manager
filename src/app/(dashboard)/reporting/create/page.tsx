@@ -19,8 +19,14 @@ export default async function CreateReportPage() {
     redirect('/login');
   }
 
+  // Build auth context for access checks (admins/superusers see all vendors)
+  const authContext = {
+    permissionLevel: session.user.permissionLevel,
+    isSuperUser: session.user.isSuperUser,
+  };
+
   // Fetch assigned vendors for the current user
-  const vendors = await getAssignedVendors(session.user.id);
+  const vendors = await getAssignedVendors(session.user.id, authContext);
 
   return (
     <PageAccessCheck resourceKey="page:reporting-create">

@@ -117,8 +117,19 @@ export function ReportForm({ initialVendors, userId }: ReportFormProps) {
 
           if (report) {
             setRagStatus(report.ragStatus);
-            setAchievements(report.achievements);
-            setFocusItems(report.focusItems);
+            // Add clientId to loaded items for stable React keys
+            setAchievements(
+              report.achievements.map((a: Achievement) => ({
+                ...a,
+                clientId: a.clientId || crypto.randomUUID(),
+              }))
+            );
+            setFocusItems(
+              report.focusItems.map((f: FocusItem) => ({
+                ...f,
+                clientId: f.clientId || crypto.randomUUID(),
+              }))
+            );
             setReportStatus(report.status);
             setSubmittedAt(report.submittedAt);
           } else {
@@ -130,6 +141,7 @@ export function ReportForm({ initialVendors, userId }: ReportFormProps) {
             if (previousWeekFocus && previousWeekFocus.length > 0) {
               const prePopulatedAchievements: Achievement[] = previousWeekFocus.map(
                 (focus: FocusItem, index: number) => ({
+                  clientId: crypto.randomUUID(), // Stable ID for React key
                   description: focus.description,
                   status: null,
                   isFromFocus: true,
@@ -212,12 +224,22 @@ export function ReportForm({ initialVendors, userId }: ReportFormProps) {
           lastSavedRef.current = debouncedData;
           setIsDirty(false);
 
-          // Update IDs from server response
+          // Update IDs from server response while preserving clientId for stable React keys
           if (result.data?.achievements) {
-            setAchievements(result.data.achievements);
+            setAchievements((prev) =>
+              prev.map((item, index) => ({
+                ...item,
+                id: result.data.achievements[index]?.id ?? item.id,
+              }))
+            );
           }
           if (result.data?.focusItems) {
-            setFocusItems(result.data.focusItems);
+            setFocusItems((prev) =>
+              prev.map((item, index) => ({
+                ...item,
+                id: result.data.focusItems[index]?.id ?? item.id,
+              }))
+            );
           }
         } else {
           setSaveStatus('error');
@@ -252,6 +274,7 @@ export function ReportForm({ initialVendors, userId }: ReportFormProps) {
           setFocusItems((prev) => [
             ...prev,
             {
+              clientId: crypto.randomUUID(), // Stable ID for React key
               description: achievement.description,
               isCarriedOver: true,
               sortOrder: prev.length,
@@ -345,6 +368,7 @@ export function ReportForm({ initialVendors, userId }: ReportFormProps) {
           prevReport.focusItems.map((f: FocusItem, index: number) => ({
             ...f,
             id: undefined,
+            clientId: crypto.randomUUID(), // Stable ID for React key
             sortOrder: index,
           }))
         );

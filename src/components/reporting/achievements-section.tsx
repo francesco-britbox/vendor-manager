@@ -51,6 +51,7 @@ export function AchievementsSection({
 
   const handleAdd = useCallback(() => {
     const newAchievement: Achievement = {
+      clientId: crypto.randomUUID(), // Stable ID for React key
       description: '',
       status: null,
       isFromFocus: false,
@@ -144,7 +145,7 @@ export function AchievementsSection({
         ) : (
           achievements.map((achievement, index) => (
             <div
-              key={achievement.id || `new-${index}`}
+              key={achievement.clientId || achievement.id || `fallback-${index}`}
               draggable={!disabled}
               onDragStart={() => handleDragStart(index)}
               onDragOver={(e) => handleDragOver(e, index)}

@@ -64,7 +64,7 @@ export const weeklyReportPayloadSchema = z.object({
 
 export const timelineMilestoneSchema = z.object({
   id: z.string().optional(),
-  date: z.string().min(1, 'Date is required'),
+  date: z.string().default(''), // Allow empty for initial creation
   title: z.string().min(1, 'Title is required'),
   status: z.enum(['completed', 'in_progress', 'upcoming', 'tbc']),
   platforms: z.array(z.string()).default([]),
@@ -75,8 +75,8 @@ export const timelineMilestoneSchema = z.object({
 export const raidItemSchema = z.object({
   id: z.string().optional(),
   type: z.enum(['risk', 'issue', 'dependency']),
-  area: z.string().min(1, 'Area is required'),
-  description: z.string().min(1, 'Description is required'),
+  area: z.string().default(''), // Allow empty for initial creation
+  description: z.string().default(''), // Allow empty for initial creation
   impact: z.enum(['high', 'medium', 'low']),
   owner: z.string().optional().nullable(),
   ragStatus: z.enum(['green', 'amber', 'red']),
@@ -86,9 +86,11 @@ export const raidItemSchema = z.object({
 export const vendorResourceSchema = z.object({
   id: z.string().optional(),
   type: z.enum(['confluence', 'jira', 'github', 'docs']),
-  name: z.string().min(1, 'Name is required'),
+  name: z.string().default(''), // Allow empty for initial creation
   description: z.string().optional().nullable(),
-  url: z.string().url('Invalid URL format'),
+  url: z.string().refine((val) => val === '' || z.string().url().safeParse(val).success, {
+    message: 'Invalid URL format',
+  }), // Allow empty or valid URL
   sortOrder: z.number().default(0),
 });
 

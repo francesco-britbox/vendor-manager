@@ -49,6 +49,7 @@ export interface AssignedVendor {
 // Achievement item in a weekly report
 export interface Achievement {
   id?: string;
+  clientId?: string; // Stable client-generated ID for React key (prevents focus loss on autosave)
   description: string;
   status: AchievementStatus;
   isFromFocus: boolean;
@@ -58,6 +59,7 @@ export interface Achievement {
 // Focus item for next week
 export interface FocusItem {
   id?: string;
+  clientId?: string; // Stable client-generated ID for React key (prevents focus loss on autosave)
   description: string;
   isCarriedOver: boolean;
   sortOrder: number;
