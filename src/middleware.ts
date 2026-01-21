@@ -40,6 +40,10 @@ function isPublicReadRoute(pathname: string): boolean {
 
 // Check if path is an admin-only route
 function isAdminRoute(pathname: string): boolean {
+  // /api/access-control/check is accessible to all authenticated users (returns own permissions)
+  if (pathname === "/api/access-control/check") {
+    return false;
+  }
   return adminRoutes.some(
     (route) => pathname === route || pathname.startsWith(route + "/")
   );
