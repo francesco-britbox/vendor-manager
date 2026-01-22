@@ -133,7 +133,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      email,
+      email: rawEmail,
       name,
       password,
       permissionLevel,
@@ -142,6 +142,9 @@ export async function POST(request: Request) {
       groupIds,
       sendInvitation = false, // New field for sending invitation
     } = body;
+
+    // Normalize email to lowercase for case-insensitive handling
+    const email = rawEmail?.toLowerCase();
 
     // Validate required fields
     // Password is optional if sending invitation
