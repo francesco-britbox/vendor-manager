@@ -35,6 +35,12 @@ export const PLATFORM_OPTIONS = [
   'Web TV',
   'Backend',
   'Internal',
+  'Evergent',
+  'Promo',
+  'Olympus',
+  'Axis',
+  'PCD',
+  'Others',
 ] as const;
 
 export type Platform = (typeof PLATFORM_OPTIONS)[number];
