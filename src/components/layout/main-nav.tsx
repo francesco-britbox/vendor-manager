@@ -5,7 +5,7 @@ import { NavLink } from "./nav-link";
 import { NavDropdown } from "./nav-dropdown";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { Users, Clock, FileText, Briefcase, Building2, ClipboardList } from "lucide-react";
+import { Users, Clock, FileText, Briefcase, Building2, ClipboardList, Link as LinkIcon, FolderOpen } from "lucide-react";
 import { useRBACPermissions } from "@/hooks/use-rbac-permissions";
 
 /**
@@ -37,6 +37,13 @@ const vendorsManagementChildren = [
 const reportingChildren = [
   { href: "/reporting/create", label: "Create Report", testId: "nav-reporting-create", icon: ClipboardList, resourceKey: "page:reporting-create" },
   { href: "/reporting", label: "View Reports", testId: "nav-reporting-view", icon: FileText, resourceKey: "page:reporting", exact: true },
+];
+
+/**
+ * Child items for the Resource Management dropdown
+ */
+const resourceManagementChildren = [
+  { href: "/resources/quick-links", label: "Quick Links", testId: "nav-quick-links", icon: LinkIcon, resourceKey: "page:quick-links" },
 ];
 
 /**
@@ -78,6 +85,11 @@ export function MainNav() {
 
   // Filter reporting dropdown children based on permissions
   const filteredReportingChildren = reportingChildren.filter(
+    (child) => canAccessResource(child.resourceKey)
+  );
+
+  // Filter resource management dropdown children based on permissions
+  const filteredResourceManagementChildren = resourceManagementChildren.filter(
     (child) => canAccessResource(child.resourceKey)
   );
 
@@ -126,6 +138,19 @@ export function MainNav() {
               icon={ClipboardList}
               items={filteredReportingChildren}
               testId="nav-reporting"
+            />
+          );
+        }
+
+        // Add the Resource Management dropdown only if user has access to any child
+        if (filteredResourceManagementChildren.length > 0) {
+          elements.push(
+            <NavDropdown
+              key="resource-management"
+              label="Resource Management"
+              icon={FolderOpen}
+              items={filteredResourceManagementChildren}
+              testId="nav-resource-management"
             />
           );
         }

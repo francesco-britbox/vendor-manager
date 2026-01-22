@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MultiTimezoneClockCard, ProfileManagement } from "@/components/dashboard";
+import { MultiTimezoneClockCard, ProfileManagement, QuickLinksWidget } from "@/components/dashboard";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -38,7 +38,15 @@ export default async function DashboardPage() {
             permissionLevel: session.user.permissionLevel,
           }}
         />
+      </div>
 
+      {/* Quick Links Widget - Positioned above Session Info */}
+      <div className="mt-6">
+        <QuickLinksWidget />
+      </div>
+
+      {/* Session Info Section */}
+      <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle>Session Info</CardTitle>

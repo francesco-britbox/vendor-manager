@@ -579,3 +579,90 @@ export const DEFAULT_TIMEZONE_CONFIGS: TimezoneConfig[] = [
     apiLocation: 'Sydney',
   },
 ];
+
+// ============================================================================
+// QUICK LINKS / RESOURCE MANAGEMENT TYPES
+// ============================================================================
+
+// Link Category interface
+export interface LinkCategory extends BaseEntity {
+  name: string;          // Lowercase normalized name
+  displayName: string;   // Original case for display
+  description?: string;
+  sortOrder: number;
+  isDefault: boolean;
+}
+
+// Quick Link interface
+export interface QuickLink extends BaseEntity {
+  title: string;
+  url: string;
+  icon?: string;
+  description?: string;
+  categoryId: string;
+  sortOrder: number;
+  createdBy: string;
+  category?: LinkCategory;
+}
+
+// Quick Link with category for display
+export interface QuickLinkWithCategory extends QuickLink {
+  category: LinkCategory;
+}
+
+// Sort options for quick links
+export type QuickLinkSortOption = 'category' | 'alphabetical' | 'custom';
+
+// Pagination options for quick links
+export type QuickLinkPageSize = 20 | 50 | 70 | 100;
+
+// User preferences for quick links widget
+export interface QuickLinksPreferences {
+  sortBy: QuickLinkSortOption;
+  pageSize: QuickLinkPageSize;
+}
+
+// Default quick links preferences
+export const DEFAULT_QUICK_LINKS_PREFERENCES: QuickLinksPreferences = {
+  sortBy: 'category',
+  pageSize: 20,
+};
+
+// Default categories for software delivery
+export const DEFAULT_LINK_CATEGORIES = [
+  'Dev Tools',
+  'Documentation',
+  'Communication',
+  'CI/CD',
+  'Monitoring',
+  'Version Control',
+  'Project Management',
+  'Design Tools',
+  'Testing',
+  'Cloud Services',
+  'API Resources',
+  'Knowledge Base',
+  'Security Tools',
+  'Databases',
+  'Code Review',
+  'HR',
+  'Product',
+  'Jira',
+  'Confluence',
+  'Generic',  // Fallback category
+] as const;
+
+// Priority order for category dropdown:
+// 1. "Generic" comes first
+// 2. Fixed priority categories in specific order
+// 3. All other categories alphabetically
+export const PRIORITY_CATEGORY_ORDER = [
+  'Generic',
+  'Product',
+  'Documentation',
+  'Jira',
+  'Confluence',
+  'HR',
+] as const;
+
+export type DefaultLinkCategory = typeof DEFAULT_LINK_CATEGORIES[number];

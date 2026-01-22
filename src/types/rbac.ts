@@ -350,6 +350,15 @@ export const PROTECTABLE_PAGES: StaticResourceDefinition[] = [
     sortOrder: 15,
     requiredLevel: 'admin',
   },
+  // Resource Management
+  {
+    resourceKey: 'page:quick-links',
+    type: 'page',
+    name: 'Quick Links',
+    description: 'Manage quick links displayed on the dashboard',
+    path: '/resources/quick-links',
+    sortOrder: 20,
+  },
 ];
 
 /** Initial protectable components */
@@ -466,6 +475,39 @@ export const PROTECTABLE_COMPONENTS: StaticResourceDefinition[] = [
     description: 'Ability to delete tags',
     parentKey: 'page:vendors',
     sortOrder: 20,
+  },
+  // Quick Links components
+  {
+    resourceKey: 'component:quick-links-create',
+    type: 'component',
+    name: 'Create Quick Links',
+    description: 'Ability to add new quick links',
+    parentKey: 'page:quick-links',
+    sortOrder: 21,
+  },
+  {
+    resourceKey: 'component:quick-links-edit',
+    type: 'component',
+    name: 'Edit Quick Links',
+    description: 'Ability to edit existing quick links',
+    parentKey: 'page:quick-links',
+    sortOrder: 22,
+  },
+  {
+    resourceKey: 'component:quick-links-delete',
+    type: 'component',
+    name: 'Delete Quick Links',
+    description: 'Ability to delete quick links',
+    parentKey: 'page:quick-links',
+    sortOrder: 23,
+  },
+  {
+    resourceKey: 'component:quick-links-categories',
+    type: 'component',
+    name: 'Manage Quick Link Categories',
+    description: 'Ability to add, edit, and delete link categories',
+    parentKey: 'page:quick-links',
+    sortOrder: 24,
   },
 ];
 

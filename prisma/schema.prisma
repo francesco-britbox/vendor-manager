@@ -899,6 +899,50 @@ model VendorResource {
 }
 
 // ============================================================================
+// RESOURCE MANAGEMENT - QUICK LINKS
+// ============================================================================
+
+/// LinkCategory model for organizing quick links by category
+model LinkCategory {
+  id          String   @id @default(cuid())
+  name        String   @unique           // Stored in lowercase for case-insensitive comparison
+  displayName String                     // Original case for display
+  description String?  @db.Text
+  sortOrder   Int      @default(0)
+  isDefault   Boolean  @default(false)   // Pre-populated system categories
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  quickLinks QuickLink[]
+
+  @@index([name])
+  @@index([sortOrder])
+  @@map("link_categories")
+}
+
+/// QuickLink model for dashboard quick links
+model QuickLink {
+  id          String   @id @default(cuid())
+  title       String
+  url         String   @db.Text          // Normalized URL with protocol
+  icon        String?  @db.VarChar(50)   // Lucide icon name
+  description String?  @db.Text
+  categoryId  String
+  sortOrder   Int      @default(0)       // User-defined order
+  createdBy   String                     // User ID who created the link
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category LinkCategory @relation(fields: [categoryId], references: [id], onDelete: SetDefault)
+
+  @@index([categoryId])
+  @@index([sortOrder])
+  @@index([createdBy])
+  @@index([title])
+  @@map("quick_links")
+}
+
+// ============================================================================
 // INVITATION AUDIT LOG
 // ============================================================================
 
