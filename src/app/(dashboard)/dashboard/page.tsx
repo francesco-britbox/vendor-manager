@@ -7,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { MultiTimezoneClockCard } from "@/components/dashboard";
+import { MultiTimezoneClockCard, ProfileManagement } from "@/components/dashboard";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -29,30 +29,15 @@ export default async function DashboardPage() {
         {/* Multi-Timezone Clock Card */}
         <MultiTimezoneClockCard />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Profile</CardTitle>
-            <CardDescription>Your account information</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <dl className="space-y-2 text-sm">
-              <div>
-                <dt className="text-muted-foreground">Name</dt>
-                <dd className="font-medium">{session.user.name}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Email</dt>
-                <dd className="font-medium">{session.user.email}</dd>
-              </div>
-              <div>
-                <dt className="text-muted-foreground">Permission Level</dt>
-                <dd className="font-medium capitalize">
-                  {session.user.permissionLevel}
-                </dd>
-              </div>
-            </dl>
-          </CardContent>
-        </Card>
+        {/* Profile Management Card */}
+        <ProfileManagement
+          initialData={{
+            id: session.user.id,
+            name: session.user.name,
+            email: session.user.email,
+            permissionLevel: session.user.permissionLevel,
+          }}
+        />
 
         <Card>
           <CardHeader>

@@ -114,6 +114,13 @@ model User {
   lastEmailDeliveryStatus   EmailDeliveryStatus? // Status of last email delivery
   lastEmailError            String?    @db.Text // Error message if last email failed
 
+  // Profile picture storage
+  profilePictureData        Bytes?              // Binary image data stored in database
+  profilePictureName        String?             // Original file name
+  profilePictureSize        Int?                // File size in bytes
+  profilePictureMimeType    String?             // MIME type (image/jpeg, image/png)
+  profilePictureUploadedAt  DateTime?           // When the image was uploaded
+
   // Relationships
   groups                UserGroup[]              // Groups this user belongs to
   deliveryManagerVendors DeliveryManagerVendor[] // Vendors assigned to this user as delivery manager
