@@ -212,7 +212,19 @@ export function RAIDSection({
 
   const handleDragEnd = useCallback(() => {
     setDraggedIndex(null);
-  }, []);
+    // Persist the new sort order for all items
+    if (vendorId) {
+      items.forEach((item) => {
+        if (item.id) {
+          fetch(`/api/reporting/vendors/${vendorId}/raid/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sortOrder: item.sortOrder }),
+          }).catch((error) => console.error('Error saving sort order:', error));
+        }
+      });
+    }
+  }, [vendorId, items]);
 
   const getTypeConfig = (type: RaidType) =>
     TYPE_OPTIONS.find((t) => t.value === type) || TYPE_OPTIONS[0];

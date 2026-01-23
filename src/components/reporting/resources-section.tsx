@@ -211,7 +211,19 @@ export function ResourcesSection({
 
   const handleDragEnd = useCallback(() => {
     setDraggedIndex(null);
-  }, []);
+    // Persist the new sort order for all items
+    if (vendorId) {
+      items.forEach((item) => {
+        if (item.id) {
+          fetch(`/api/reporting/vendors/${vendorId}/resources/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sortOrder: item.sortOrder }),
+          }).catch((error) => console.error('Error saving sort order:', error));
+        }
+      });
+    }
+  }, [vendorId, items]);
 
   const getTypeConfig = (type: ResourceType) =>
     TYPE_OPTIONS.find((t) => t.value === type) || TYPE_OPTIONS[3];
