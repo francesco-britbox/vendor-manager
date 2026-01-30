@@ -217,17 +217,18 @@ model ResourcePermission {
 
 /// Vendor model representing external service providers
 model Vendor {
-  id                 String       @id @default(cuid())
-  name               String
-  address            String?
-  location           String?
-  serviceDescription String?      @db.Text
-  status             VendorStatus @default(active)
+  id                     String       @id @default(cuid())
+  name                   String
+  address                String?
+  location               String?
+  serviceDescription     String?      @db.Text
+  status                 VendorStatus @default(active)
+  includeInWeeklyReports Boolean      @default(true)  // Whether to include this vendor location in weekly reports
   // Contract dates (auto-populated from document analysis)
-  contractStartDate  DateTime?    @db.Date
-  contractEndDate    DateTime?    @db.Date
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  contractStartDate      DateTime?    @db.Date
+  contractEndDate        DateTime?    @db.Date
+  createdAt              DateTime     @default(now())
+  updatedAt              DateTime     @updatedAt
 
   // Relationships
   rateCards              RateCard[]
@@ -238,10 +239,7 @@ model Vendor {
   documents              VendorDocument[]
   // Delivery reporting relationships
   deliveryManagerVendors DeliveryManagerVendor[]
-  weeklyReports          WeeklyReport[]
-  timeline               VendorTimeline[]
-  raidItems              VendorRaidItem[]
-  resources              VendorResource[]
+  projects               Project[]
 
   @@index([name])
   @@index([status])
@@ -788,10 +786,43 @@ model DeliveryManagerVendor {
   @@map("delivery_manager_vendors")
 }
 
-/// Weekly Report model for vendor delivery status tracking
+/// Project status for tracking project lifecycle
+enum ProjectStatus {
+  active
+  inactive
+  archived
+}
+
+/// Project model - vendors can have multiple projects, each with its own reports
+model Project {
+  id          String        @id @default(cuid())
+  vendorId    String
+  name        String
+  description String?       @db.Text
+  status      ProjectStatus @default(active)
+  startDate   DateTime?     @db.Date
+  endDate     DateTime?     @db.Date
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relationships
+  vendor        Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  weeklyReports WeeklyReport[]
+  timeline      ProjectTimeline[]
+  raidItems     ProjectRaidItem[]
+  resources     ProjectResource[]
+
+  @@unique([vendorId, name])
+  @@index([vendorId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("projects")
+}
+
+/// Weekly Report model for project delivery status tracking
 model WeeklyReport {
   id          String    @id @default(cuid())
-  vendorId    String
+  projectId   String
   weekStart   DateTime  @db.Date
   ragStatus   String?   @db.VarChar(10)  // green, amber, red
   status      String    @default("draft") @db.VarChar(20)  // draft, submitted
@@ -799,12 +830,12 @@ model WeeklyReport {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  vendor       Vendor                    @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  project      Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   achievements WeeklyReportAchievement[]
   focusItems   WeeklyReportFocus[]
 
-  @@unique([vendorId, weekStart])
-  @@index([vendorId, weekStart])
+  @@unique([projectId, weekStart])
+  @@index([projectId, weekStart])
   @@map("weekly_reports")
 }
 
@@ -841,10 +872,10 @@ model WeeklyReportFocus {
   @@map("weekly_report_focus")
 }
 
-/// Vendor timeline/milestones (persistent, vendor-level data)
-model VendorTimeline {
+/// Project timeline/milestones (persistent, project-level data)
+model ProjectTimeline {
   id        String   @id @default(cuid())
-  vendorId  String
+  projectId String
   date      String   @db.VarChar(50)  // Flexible format: "22/01", "Mar 2026", "TBC"
   title     String
   status    String   @db.VarChar(20)  // completed, in_progress, upcoming, tbc
@@ -854,16 +885,16 @@ model VendorTimeline {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@index([vendorId])
-  @@map("vendor_timelines")
+  @@index([projectId])
+  @@map("project_timelines")
 }
 
-/// RAID Log items (Risks, Issues, Dependencies) - persistent vendor-level data
-model VendorRaidItem {
+/// RAID Log items (Risks, Issues, Dependencies) - persistent project-level data
+model ProjectRaidItem {
   id          String   @id @default(cuid())
-  vendorId    String
+  projectId   String
   type        String   @db.VarChar(20)  // risk, issue, dependency
   area        String
   description String   @db.Text
@@ -874,16 +905,16 @@ model VendorRaidItem {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@index([vendorId])
-  @@map("vendor_raid_items")
+  @@index([projectId])
+  @@map("project_raid_items")
 }
 
-/// Vendor resources/links (persistent vendor-level data)
-model VendorResource {
+/// Project resources/links (persistent project-level data)
+model ProjectResource {
   id          String   @id @default(cuid())
-  vendorId    String
+  projectId   String
   type        String   @db.VarChar(20)  // confluence, jira, github, docs
   name        String
   description String?  @db.Text
@@ -892,10 +923,10 @@ model VendorResource {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
-  @@index([vendorId])
-  @@map("vendor_resources")
+  @@index([projectId])
+  @@map("project_resources")
 }
 
 // ============================================================================

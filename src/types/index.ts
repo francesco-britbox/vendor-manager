@@ -84,6 +84,7 @@ export interface Vendor extends BaseEntity {
   location?: string;
   serviceDescription?: string;
   status: VendorStatus;
+  includeInWeeklyReports: boolean;
   contractStartDate?: Date;
   contractEndDate?: Date;
   tags: Tag[];

@@ -69,6 +69,7 @@ export const updateVendorSchema = z.object({
     .optional()
     .nullable(),
   status: vendorStatusSchema.optional(),
+  includeInWeeklyReports: z.boolean().optional(),
 });
 
 /**
@@ -202,6 +203,7 @@ function transformVendor(dbVendor: {
   location: string | null;
   serviceDescription: string | null;
   status: 'active' | 'inactive';
+  includeInWeeklyReports: boolean;
   contractStartDate: Date | null;
   contractEndDate: Date | null;
   createdAt: Date;
@@ -221,6 +223,7 @@ function transformVendor(dbVendor: {
     location: dbVendor.location ?? undefined,
     serviceDescription: dbVendor.serviceDescription ?? undefined,
     status: dbVendor.status as VendorStatus,
+    includeInWeeklyReports: dbVendor.includeInWeeklyReports,
     contractStartDate: dbVendor.contractStartDate ?? undefined,
     contractEndDate: dbVendor.contractEndDate ?? undefined,
     createdAt: dbVendor.createdAt,
@@ -368,6 +371,7 @@ export async function updateVendor(
       ...(input.location !== undefined && { location: input.location }),
       ...(input.serviceDescription !== undefined && { serviceDescription: input.serviceDescription }),
       ...(input.status !== undefined && { status: input.status }),
+      ...(input.includeInWeeklyReports !== undefined && { includeInWeeklyReports: input.includeInWeeklyReports }),
     },
     include: {
       tags: {

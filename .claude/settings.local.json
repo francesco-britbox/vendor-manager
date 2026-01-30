@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:automaker.app)",
+      "Bash(gh api:*)"
+    ]
+  }
+}

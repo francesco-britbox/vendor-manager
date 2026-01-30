@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { VendorDialog } from './vendor-dialog';
 import { VendorDocumentsSection } from '@/components/vendor-documents';
 import { ComponentGuard } from '@/components/permissions';
+import { WeeklyReportsCheckbox } from './weekly-reports-checkbox';
 import {
   ArrowLeft,
   Building2,
@@ -241,6 +242,19 @@ export function VendorDetail({ vendor: initialVendor }: VendorDetailProps) {
                 </p>
               </div>
             )}
+
+            {/* Weekly Reports Checkbox - Protected by RBAC */}
+            <ComponentGuard componentKey="vendor-weekly-reports-toggle">
+              <div className="pt-2 border-t">
+                <WeeklyReportsCheckbox
+                  vendorId={vendor.id}
+                  initialValue={vendor.includeInWeeklyReports}
+                  onUpdate={(newValue) => {
+                    setVendor({ ...vendor, includeInWeeklyReports: newValue });
+                  }}
+                />
+              </div>
+            </ComponentGuard>
           </CardContent>
         </Card>
 

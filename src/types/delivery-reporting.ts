@@ -23,6 +23,9 @@ export type ImpactLevel = 'high' | 'medium' | 'low';
 // Resource type
 export type ResourceType = 'confluence' | 'jira' | 'github' | 'docs';
 
+// Project status type
+export type ProjectStatus = 'active' | 'inactive' | 'archived';
+
 // Platform names for timeline milestones
 export const PLATFORM_OPTIONS = [
   'ATV/FTV',
@@ -52,6 +55,24 @@ export interface AssignedVendor {
   slug?: string;
 }
 
+// Project (basic info)
+export interface Project {
+  id: string;
+  vendorId: string;
+  name: string;
+  description?: string | null;
+  status: ProjectStatus;
+  startDate?: string | null;
+  endDate?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+// Project with vendor info
+export interface ProjectWithVendor extends Project {
+  vendorName: string;
+}
+
 // Achievement item in a weekly report
 export interface Achievement {
   id?: string;
@@ -71,7 +92,7 @@ export interface FocusItem {
   sortOrder: number;
 }
 
-// Timeline milestone (vendor-level persistent data)
+// Timeline milestone (project-level persistent data)
 export interface TimelineMilestone {
   id?: string;
   date: string;
@@ -82,7 +103,7 @@ export interface TimelineMilestone {
   sortOrder: number;
 }
 
-// RAID log item (vendor-level persistent data)
+// RAID log item (project-level persistent data)
 export interface RaidItem {
   id?: string;
   type: RaidType;
@@ -94,8 +115,8 @@ export interface RaidItem {
   sortOrder: number;
 }
 
-// Vendor resource/link (vendor-level persistent data)
-export interface VendorResourceItem {
+// Project resource/link (project-level persistent data)
+export interface ProjectResourceItem {
   id?: string;
   type: ResourceType;
   name: string;
@@ -104,10 +125,13 @@ export interface VendorResourceItem {
   sortOrder: number;
 }
 
+// Backward compatibility alias
+export type VendorResourceItem = ProjectResourceItem;
+
 // Full weekly report data
 export interface WeeklyReportData {
   id?: string;
-  vendorId: string;
+  projectId: string;
   weekStart: string; // ISO date string YYYY-MM-DD
   ragStatus: RAGStatus | null;
   status: ReportStatus;
@@ -120,7 +144,7 @@ export interface WeeklyReportData {
 
 // Request payload for creating/updating a report
 export interface WeeklyReportPayload {
-  vendorId: string;
+  projectId: string;
   weekStart: string;
   ragStatus?: RAGStatus | null;
   achievements?: Achievement[];
@@ -134,13 +158,16 @@ export interface WeeklyReportResponse {
   isNew: boolean;
 }
 
-// Full vendor report data including persistent vendor-level data
-export interface FullVendorReportData {
+// Full project report data including persistent project-level data
+export interface FullProjectReportData {
   report: WeeklyReportData | null;
   timeline: TimelineMilestone[];
   raidItems: RaidItem[];
-  resources: VendorResourceItem[];
+  resources: ProjectResourceItem[];
 }
+
+// Backward compatibility alias
+export type FullVendorReportData = FullProjectReportData;
 
 // Validation result
 export interface ValidationResult {
@@ -165,13 +192,14 @@ export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 // Form state for the report form
 export interface ReportFormState {
   currentVendorId: string | null;
+  currentProjectId: string | null;
   selectedWeek: string; // ISO date string for Monday of week
   report: WeeklyReportData | null;
   achievements: Achievement[];
   focusItems: FocusItem[];
   timeline: TimelineMilestone[];
   raidItems: RaidItem[];
-  resources: VendorResourceItem[];
+  resources: ProjectResourceItem[];
   saveStatus: SaveStatus;
   isDirty: boolean;
 }

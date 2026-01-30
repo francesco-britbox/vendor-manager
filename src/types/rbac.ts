@@ -350,6 +350,24 @@ export const PROTECTABLE_PAGES: StaticResourceDefinition[] = [
     sortOrder: 15,
     requiredLevel: 'admin',
   },
+  // Reporting
+  {
+    resourceKey: 'page:reporting',
+    type: 'page',
+    name: 'Reporting',
+    description: 'Weekly vendor reporting section',
+    path: '/reporting',
+    sortOrder: 16,
+  },
+  {
+    resourceKey: 'page:reporting-create',
+    type: 'page',
+    name: 'Create Report',
+    description: 'Create and edit weekly vendor reports',
+    path: '/reporting/create',
+    parentKey: 'page:reporting',
+    sortOrder: 17,
+  },
   // Resource Management
   {
     resourceKey: 'page:quick-links',
